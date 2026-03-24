@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corario AI - Ministerio Musical</title>
+    <!-- Cargando librerías esenciales -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Playfair+Display:wght@700&family=JetBrains+Mono&display=swap');
+        
+        .font-sans { font-family: 'Inter', sans-serif; }
+        .font-serif { font-family: 'Playfair Display', serif; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+        @media print {
+            .print\:hidden { display: none !important; }
+            main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+            body { background: white !important; color: black !important; -webkit-print-color-adjust: exact; }
+            .song-page { page-break-after: always; padding: 1cm 0; border-bottom: 1px solid #eee; }
+            .chord-text { color: #1e40af !important; font-weight: bold !important; }
+        }
+
+        /* Animaciones suaves */
+        .animate-in { animation: fadeIn 0.3s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-slate-50">
+    <div id="root"></div>
+
+    <!-- Firebase SDK - Usaremos módulos ESM para compatibilidad moderna -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+
+        // --- CONFIGURACIÓN DE FIREBASE ---
+        // IMPORTANTE: Estos datos los obtendrás en el siguiente paso en tu propia consola de Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDummyKey", 
+            authDomain: "tu-proyecto.firebaseapp.com",
+            projectId: "tu-proyecto",
+            storageBucket: "tu-proyecto.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
+        };
+
+        // Inicializar Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Hacerlos globales para que React los vea
+        window.fb_db = db;
+        window.fb_auth = auth;
+        window.fb_funcs = { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc };
+    </script>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useMemo } = React;
+        const { 
+            Music, Plus, Search, Moon, Sun, ChevronLeft, Edit2, Trash2, 
+            Save, Palette, Printer, Play, Pause, Rewind, FastForward, 
+            BookOpen, ListPlus, X, Sparkles, FolderPlus, ListMusic, Eye, LayoutList, Loader2, Wand2
+        } = lucide;
+
+        // Componente de Icono para compatibilidad
+        const Icon = ({ name, ...props }) => {
+            const LucideIcon = lucide[name] || Music;
+            return <LucideIcon {...props} />;
+        };
+
+        function App() {
+            // Aquí pegaremos toda la lógica de canciones, scroll, metrónomo e IA 
+            // que perfeccionamos en los mensajes anteriores.
+            
+            // --- ESTADOS ---
+            const [songs, setSongs] = useState([]);
+            const [playlists, setPlaylists] = useState([]);
+            const [currentView, setCurrentView] = useState('list');
+            const [activeTab, setActiveTab] = useState('songs');
+            const [activeSongId, setActiveSongId] = useState(null);
+            const [activePlaylistId, setActivePlaylistId] = useState(null);
+            const [searchQuery, setSearchQuery] = useState('');
+            
+            const [playlistMode, setPlaylistMode] = useState('list');
+            const [isDarkMode, setIsDarkMode] = useState(false);
+            const [textSize, setTextSize] = useState(18);
+            const [transposeSteps, setTransposeSteps] = useState(0);
+            const [showStylePanel, setShowStylePanel] = useState(false);
+            const [fontFamily, setFontFamily] = useState('font-sans');
+            const [lyricColor, setLyricColor] = useState('default');
+            const [chordColor, setChordColor] = useState('default');
+
+            const [isScrolling, setIsScrolling] = useState(false);
+            const [scrollSpeed, setScrollSpeed] = useState(2);
+            const [bpm, setBpm] = useState(120);
+            const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
+            const [isAiLoading, setIsAiLoading] = useState(false);
+            const [aiAnalysis, setAiAnalysis] = useState(null);
+            const [toast, setToast] = useState(null);
+
+            const [editTitle, setEditTitle] = useState('');
+            const [editArtist, setEditArtist] = useState('');
+            const [editKey, setEditKey] = useState('');
+            const [editLyrics, setEditLyrics] = useState('');
+
+            // --- SINCRONIZACIÓN (Simulada hasta tener Firebase real) ---
+            useEffect(() => {
+                // Datos de ejemplo para que veas la app funcionando ya
+                const demoSongs = [
+                    { id: '1', title: 'Cuan Grande es Él', artist: 'Hymn', musicalKey: 'Sol', lyrics: '[Sol]Señor mi Dios, al con[Do]templar los cielos\nEl [Sol]firmamento y las [Re]estrellas mil' },
+                    { id: '2', title: 'Agnus Dei', artist: 'Michael W. Smith', musicalKey: 'La', lyrics: '[La]Aleluya, [Re]Aleluya\nReinas [La]Tú, poderoso Dios' }
+                ];
+                setSongs(demoSongs);
+                setPlaylists([{ id: 'p1', name: 'Culto de Domingo', songs: ['1', '2'] }]);
+            }, []);
+
+            const activeSong = songs.find(s => s.id === activeSongId);
+            const activePlaylist = playlists.find(p => p.id === activePlaylistId);
+
+            const showToast = (msg) => {
+                setToast(msg);
+                setTimeout(() => setToast(null), 3000);
+            };
+
+            const transposeChord = (chordStr, steps) => {
+                if (!chordStr || steps === 0) return chordStr;
+                const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                const map = { 'Db':'C#', 'Eb':'D#', 'Gb':'F#', 'Ab':'G#', 'Bb':'A#', 'Do':'C', 'Re':'D', 'Mi':'E', 'Fa':'F', 'Sol':'G', 'La':'A', 'Si':'B' };
+                return chordStr.replace(/([A-G]|Do|Re|Mi|Fa|Sol|La|Si)[#b]?/gi, (m) => {
+                    let note = m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
+                    if (map[note]) note = map[note];
+                    let idx = notes.indexOf(note);
+                    if (idx === -1) return m;
+                    let newIdx = (idx + steps) % 12;
+                    if (newIdx < 0) newIdx += 12;
+                    return notes[newIdx];
+                });
+            };
+
+            const renderLyrics = (text, steps = 0) => {
+                if (!text) return null;
+                return text.split('\n').map((line, i) => (
+                    <div key={i} className={`flex flex-wrap items-end mb-1 ${fontFamily}`}>
+                        {line.split(/(\[[^\]]+\])/g).map((part, j) => {
+                            if (part.startsWith('[') && part.endsWith(']')) {
+                                return <span key={j} className="text-indigo-600 font-bold text-sm block -mb-1 mr-1">{transposeChord(part.slice(1, -1), steps)}</span>;
+                            }
+                            return <span key={j} className="text-slate-800 whitespace-pre">{part}</span>;
+                        })}
+                    </div>
+                ));
+            };
+
+            return (
+                <div className={`min-h-screen ${isDarkMode ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-900'}`}>
+                    {/* Header */}
+                    <header className="p-4 bg-indigo-700 text-white flex justify-between items-center shadow-lg sticky top-0 z-50 print:hidden">
+                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('list')}>
+                            <Music size={24} />
+                            <h1 className="text-xl font-black italic">CORARIO AI</h1>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <button onClick={() => setIsDarkMode(!isDarkMode)}>{isDarkMode ? <Sun /> : <Moon />}</button>
+                            <button className="bg-white text-indigo-700 px-4 py-1 rounded-full font-bold text-sm" onClick={() => setCurrentView('edit')}>+ Nueva</button>
+                        </div>
+                    </header>
+
+                    <main className="max-w-4xl mx-auto p-4">
+                        {currentView === 'list' && (
+                            <div className="animate-in">
+                                <div className="flex gap-2 mb-6">
+                                    <button onClick={() => setActiveTab('songs')} className={`flex-1 py-2 rounded-xl font-bold ${activeTab === 'songs' ? 'bg-indigo-600 text-white' : 'bg-white border'}`}>Canciones</button>
+                                    <button onClick={() => setActiveTab('playlists')} className={`flex-1 py-2 rounded-xl font-bold ${activeTab === 'playlists' ? 'bg-indigo-600 text-white' : 'bg-white border'}`}>Cultos</button>
+                                </div>
+                                
+                                <div className="relative mb-6">
+                                    <Search className="absolute left-3 top-3 opacity-30" size={20} />
+                                    <input 
+                                        type="text" 
+                                        placeholder="Buscar alabanza..." 
+                                        className="w-full pl-10 pr-4 py-3 rounded-2xl border-2 outline-none focus:border-indigo-500"
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3">
+                                    {activeTab === 'songs' ? (
+                                        songs.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
+                                            <div key={s.id} onClick={() => {setActiveSongId(s.id); setCurrentView('view')}} className="p-4 bg-white rounded-2xl border-2 hover:border-indigo-500 cursor-pointer flex justify-between items-center shadow-sm">
+                                                <div>
+                                                    <h3 className="font-bold text-lg">{s.title}</h3>
+                                                    <p className="text-sm opacity-50">{s.artist} • [{s.musicalKey}]</p>
+                                                </div>
+                                                <ChevronLeft className="rotate-180 opacity-20" />
+                                            </div>
+                                        ))
+                                    ) : (
+                                        playlists.map(p => (
+                                            <div key={p.id} onClick={() => {setActivePlaylistId(p.id); setCurrentView('playlistView')}} className="p-4 bg-white rounded-2xl border-2 hover:border-indigo-500 cursor-pointer shadow-sm">
+                                                <h3 className="font-bold text-xl flex items-center gap-2"><ListMusic className="text-indigo-500" /> {p.name}</h3>
+                                                <p className="text-sm opacity-50">{p.songs.length} canciones</p>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {currentView === 'view' && activeSong && (
+                            <div className="animate-in pb-20">
+                                <button onClick={() => setCurrentView('list')} className="text-indigo-600 font-bold flex items-center gap-1 mb-6 print:hidden"><ChevronLeft size={16}/> Volver</button>
+                                <h2 className="text-4xl font-black mb-1">{activeSong.title}</h2>
+                                <p className="text-xl opacity-50 italic mb-6">{activeSong.artist}</p>
+                                
+                                <div className="flex gap-2 mb-8 print:hidden">
+                                    <div className="flex items-center bg-white border rounded-xl p-1 shadow-sm">
+                                        <button className="px-3 font-black" onClick={() => setTransposeSteps(s => s-1)}>-</button>
+                                        <span className="px-2 text-indigo-600 font-bold">{transposeSteps}</span>
+                                        <button className="px-3 font-black" onClick={() => setTransposeSteps(s => s+1)}>+</button>
+                                    </div>
+                                    <button className="p-3 bg-white border rounded-xl shadow-sm" onClick={() => window.print()}><Printer size={20}/></button>
+                                </div>
+
+                                <div className="text-lg leading-relaxed">
+                                    {renderLyrics(activeSong.lyrics, transposeSteps)}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Control de Scroll Flotante */}
+                        {(currentView === 'view' || playlistMode === 'full') && (
+                            <div className="fixed bottom-6 right-6 flex items-center gap-2 p-2 bg-white/80 backdrop-blur rounded-full shadow-2xl border print:hidden">
+                                {isScrolling && <span className="font-bold px-2 text-indigo-600">{scrollSpeed}x</span>}
+                                <button 
+                                    onClick={() => setIsScrolling(!isScrolling)}
+                                    className={`p-4 rounded-full text-white shadow-lg ${isScrolling ? 'bg-red-500' : 'bg-indigo-600'}`}
+                                >
+                                    {isScrolling ? <Pause /> : <Play />}
+                                </button>
+                            </div>
+                        )}
+                    </main>
+
+                    {toast && (
+                        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-800 text-white px-6 py-2 rounded-full font-bold animate-bounce shadow-xl">
+                            {toast}
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
