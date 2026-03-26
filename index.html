@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="notranslate" translate="no">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google" content="notranslate">
     <title>Corario AI - Ministerio Musical</title>
     <!-- Librerías de Producción -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -17,6 +18,8 @@
         body { font-family: 'Inter', sans-serif; transition: background-color 0.3s; margin: 0; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
+        .notranslate { translate: no !important; }
+
         @media print {
             .print\:hidden { display: none !important; }
             main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
@@ -30,8 +33,6 @@
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #6366f1; border-radius: 10px; }
 
-        .icon-container { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
-        
         /* Renderizado Maestro: Acorde exactamente sobre la sílaba */
         .chord-segment {
             display: inline-flex;
@@ -62,7 +63,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 notranslate" translate="no">
     <div id="root"></div>
 
     <script type="module">
@@ -70,6 +71,17 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
+        // ---------------------------------------------------------
+       const firebaseConfig = {
+  apiKey: "AIzaSyAqMDVdI0mjTf9Mdvg1SmkPUZaaxV8X2o4",
+  authDomain: "mi-corario-pro.firebaseapp.com",
+  projectId: "mi-corario-pro",
+  storageBucket: "mi-corario-pro.firebasestorage.app",
+  messagingSenderId: "85524374170",
+  appId: "1:85524374170:web:b4d509f79608a5145a3523",
+  measurementId: "G-F8DYHNMLSC"
+};
+        // ---------------------------------------------------------
         const firebaseConfig = {
             apiKey: "AIzaSyAqMDVdI0mjTf9Mdvg1SmkPUZaaxV8X2o4",
             authDomain: "mi-corario-pro.firebaseapp.com",
@@ -78,13 +90,14 @@
             messagingSenderId: "85524374170",
             appId: "1:85524374170:web:b4d509f79608a5145a3523"
         };
+        // ---------------------------------------------------------
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'corario-v14-final';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'corario-v15-final';
 
-        window.FB_PRO = { auth, db, appId, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, signInAnonymously, onAuthStateChanged, signInWithCustomToken };
+        window.FB_CORE = { auth, db, appId, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, signInAnonymously, onAuthStateChanged, signInWithCustomToken };
     </script>
 
     <script type="text/babel">
@@ -108,7 +121,7 @@
         };
 
         function App() {
-          const fb = window.FB_PRO;
+          const fb = window.FB_CORE;
           const [user, setUser] = useState(null);
           const [songs, setSongs] = useState([]);
           const [playlists, setPlaylists] = useState([]);
@@ -121,20 +134,17 @@
           const [isDarkMode, setIsDarkMode] = useState(false);
           const [playlistMode, setPlaylistMode] = useState('list');
           
-          // Estilos
           const [textSize, setTextSize] = useState(18);
           const [chordColor, setChordColor] = useState('indigo');
           const [lyricColor, setLyricColor] = useState('default');
           const [showStylePanel, setShowStylePanel] = useState(false);
           const [transposeSteps, setTransposeSteps] = useState(0);
 
-          // Herramientas
           const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
           const [bpm, setBpm] = useState(120);
           const [isScrolling, setIsScrolling] = useState(false);
           const [scrollSpeed, setScrollSpeed] = useState(2);
 
-          // Editor
           const [editTitle, setEditTitle] = useState('');
           const [editArtist, setEditArtist] = useState('');
           const [editKey, setEditKey] = useState('');
@@ -149,14 +159,11 @@
           const audioCtxRef = useRef(null);
           const metronomeIntervalRef = useRef(null);
 
-          // 1. INICIAR FIREBASE
           useEffect(() => {
             const initAuth = async () => {
-              if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await fb.signInWithCustomToken(fb.auth, __initial_auth_token);
-              } else {
+              try {
                 await fb.signInAnonymously(fb.auth);
-              }
+              } catch (e) { console.error(e); }
             };
             initAuth();
             const unsub = fb.onAuthStateChanged(fb.auth, (u) => {
@@ -166,7 +173,6 @@
             return () => unsub();
           }, []);
 
-          // 2. CARGAR DATOS
           useEffect(() => {
             if (!user) return;
             const unsubS = fb.onSnapshot(fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs'), (snap) => {
@@ -178,7 +184,6 @@
             return () => { unsubS(); unsubP(); };
           }, [user]);
 
-          // --- MOTOR DE APOYO ---
           useEffect(() => {
             if (isMetronomePlaying) {
               metronomeIntervalRef.current = setInterval(() => {
@@ -202,11 +207,9 @@
             }
           }, [isScrolling, scrollSpeed]);
 
-          // --- CIFRADO AMERICANO (No traduce a Do Re Mi) ---
           const transposeChord = (chordStr, steps) => {
             if (!chordStr || steps === 0) return chordStr;
             const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-            // Convertimos Do Re Mi a Americano si entra por error
             const mapEs = { 'DO':'C', 'RE':'D', 'MI':'E', 'FA':'F', 'SOL':'G', 'LA':'A', 'SI':'B' };
             const mapEnh = { 'DB':'C#', 'EB':'D#', 'GB':'F#', 'AB':'G#', 'BB':'A#' };
             
@@ -214,10 +217,8 @@
               let note = m.toUpperCase();
               if (mapEs[note]) note = mapEs[note];
               if (mapEnh[note]) note = mapEnh[note];
-              
               let idx = notes.indexOf(note);
               if (idx === -1) return m;
-              
               let newIdx = (idx + steps) % 12;
               if (newIdx < 0) newIdx += 12;
               return notes[newIdx];
@@ -227,7 +228,6 @@
           const chordColorMap = { indigo: '#6366f1', red: '#ef4444', emerald: '#10b981', rose: '#f43f5e', orange: '#f59e0b' };
           const lyricColorMap = { default: isDarkMode ? '#f8fafc' : '#1e293b', blue: '#3b82f6', teal: '#14b8a6', slate: '#64748b' };
 
-          // --- RENDERIZADO (Con Bloqueo de Traducción) ---
           const renderLyrics = (text, steps = transposeSteps) => {
             if (!text) return null;
             return text.split('\n').map((line, lineIdx) => {
@@ -246,13 +246,13 @@
               });
               if (pendingChord) segments.push({ chord: pendingChord, text: '' });
               return (
-                <div key={lineIdx} className="lyric-line" translate="no">
+                <div key={lineIdx} className="lyric-line notranslate" translate="no">
                   {segments.map((seg, segIdx) => (
-                    <div key={segIdx} className="chord-segment" translate="no">
-                      <span className="chord-visual font-mono" translate="no" style={{ color: chordColorMap[chordColor], fontSize: `${textSize * 0.75}px` }}>
+                    <div key={segIdx} className="chord-segment notranslate" translate="no">
+                      <span className="chord-visual font-mono notranslate" translate="no" style={{ color: chordColorMap[chordColor], fontSize: `${textSize * 0.75}px` }}>
                         {seg.chord ? transposeChord(seg.chord, steps) : ''}
                       </span>
-                      <span className="text-visual" translate="no" style={{ color: lyricColorMap[lyricColor], fontSize: `${textSize}px` }}>
+                      <span className="text-visual notranslate" translate="no" style={{ color: lyricColorMap[lyricColor], fontSize: `${textSize}px` }}>
                         {seg.text || (seg.chord ? '\u00A0' : '')}
                       </span>
                     </div>
@@ -262,19 +262,45 @@
             });
           };
 
-          // --- VINCULACIÓN PROFESIONAL ---
+          const handleReharmonize = async () => {
+            if (!editLyrics) return showToast("Primero pega la letra", "error");
+            setIsAiLoading(true);
+            const apiKey = "gen-lang-client-0332007452"; // LLAVE DE IA
+            const prompt = `Actúa como músico profesional. Re-armoniza esta alabanza cristiana usando acordes de piano enriquecidos (7mas, 9nas, tensiones). 
+            REGLAS CRÍTICAS: 
+            1. Devuelve SOLAMENTE la letra final. 
+            2. Usa CIFRADO AMERICANO (A, B, C, D, E, F, G).
+            3. Los acordes deben estar en corchetes [Acorde] justo antes de la sílaba.
+            4. PROHIBIDO saludos, introducciones o explicaciones.
+            Letra actual:\n${editLyrics}`;
+            
+            try {
+              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+              });
+              const data = await res.json();
+              let result = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (result) {
+                const cleaned = result.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
+                setEditLyrics(cleaned);
+                showToast("¡IA: Armonía aplicada!");
+              }
+            } catch (e) { showToast("Error de conexión IA", "error"); }
+            setIsAiLoading(false);
+          };
+
           const formatInternetChords = () => {
             if (!editLyrics) return;
             const lines = editLyrics.split('\n');
             let newLyrics = [];
             const isChord = (w) => /^[A-G][#b]?(m|maj|min|dim|aug|sus|add|[0-9]|[-+()/#])*$/i.test(w) || /^(Do|Re|Mi|Fa|Sol|La|Si)[#b]?(m|maj|min|dim|aug|sus|add|[0-9]|[-+()/#])*$/i.test(w);
-            
             for (let i = 0; i < lines.length; i++) {
                 const currentLine = lines[i];
                 const nextLine = lines[i+1];
                 const words = currentLine.trim().split(/\s+/);
                 const isChordLine = words.length > 0 && words.every(w => isChord(w));
-
                 if (isChordLine && nextLine && !nextLine.trim().split(/\s+/).every(w => isChord(w))) {
                     let merged = nextLine.split('');
                     let offset = 0;
@@ -289,44 +315,12 @@
                     }
                     newLyrics.push(merged.join(''));
                     i++;
-                } else {
-                    newLyrics.push(currentLine);
-                }
+                } else { newLyrics.push(currentLine); }
             }
             setEditLyrics(newLyrics.join('\n'));
-            showToast("Acordes vinculados sobre la letra");
+            showToast("Acordes vinculados correctamente");
           };
 
-          // --- IA GEMINI 2.5 (Ajustada para Vercel) ---
-          const handleReharmonize = async () => {
-            if (!editLyrics) return showToast("Primero pega la letra", "error");
-            setIsAiLoading(true);
-            const apiKey = ""; // Inyectada por el sistema
-            const prompt = `Actúa como músico experto. Re-armoniza la siguiente alabanza cristiana con acordes avanzados de piano (7mas, 9nas, tensiones). 
-            REGLAS: 
-            1. Devuelve SOLAMENTE la letra con los acordes entre corchetes [Acorde] integrados en el texto. 
-            2. Usa Cifrado Americano (A, B, C, D, E, F, G).
-            3. NO des explicaciones ni uses bloques de código.
-            Letra actual:\n${editLyrics}`;
-            
-            try {
-              const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-              });
-              const data = await res.json();
-              let result = data.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (result) {
-                const cleaned = result.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
-                setEditLyrics(cleaned);
-                showToast("¡IA: Armonía enriquecida!");
-              }
-            } catch (e) { showToast("IA no disponible temporalmente", "error"); }
-            setIsAiLoading(false);
-          };
-
-          // --- FUNCIÓN COMPARTIR (Vía URL) ---
           const handleShare = async () => {
             if (!activePlaylist) return;
             try {
@@ -338,16 +332,13 @@
               };
               const shareDoc = await fb.addDoc(fb.collection(fb.db, 'artifacts', fb.appId, 'public', 'data', 'shares'), shareData);
               const url = `${window.location.origin}${window.location.pathname}?share=${shareDoc.id}`;
-              
-              // Intentar copiar al portapapeles
               const textArea = document.createElement("textarea");
               textArea.value = url;
               document.body.appendChild(textArea);
               textArea.select();
               document.execCommand('copy');
               document.body.removeChild(textArea);
-              
-              showToast("Enlace de presentación copiado");
+              showToast("Enlace copiado al portapapeles");
             } catch (e) { showToast("Error al generar enlace", "error"); }
           };
 
@@ -360,7 +351,7 @@
                 showToast("¡Alabanza Guardada!");
                 setCurrentView('list');
                 setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey('');
-            } catch (e) { showToast("Error al guardar", "error"); }
+            } catch (e) { showToast("Error al guardar en Firebase", "error"); }
           };
 
           const showToast = (message, type = "success") => { setToast({message, type}); setTimeout(() => setToast(null), 3000); };
@@ -376,7 +367,7 @@
           if (loading) return <div className="flex h-screen items-center justify-center bg-indigo-700 text-white"><Icon name="music" size={64} spin={true} /></div>;
 
           return (
-            <div className={`min-h-screen transition-all ${isDarkMode ? 'dark bg-slate-950' : 'bg-slate-50'}`}>
+            <div className={`min-h-screen transition-all notranslate ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`} translate="no">
               
               {toast && (
                 <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce ${toast.type === 'error' ? 'bg-red-600' : 'bg-indigo-600'} text-white`}>
@@ -390,7 +381,7 @@
                   <h1 className="text-xl font-black italic uppercase tracking-tighter">Corario AI</h1>
                 </div>
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+                  <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 hover:bg-white/10 rounded-full">
                     <Icon name={isDarkMode ? "sun" : "moon"} size={20} />
                   </button>
                   {currentView === 'list' && (
@@ -409,7 +400,7 @@
 
                     <div className="relative mb-8">
                       <div className="absolute left-4 top-3.5 opacity-30 dark:text-white"><Icon name="search" size={20} /></div>
-                      <input type="text" placeholder="Busca título, compositor o frase..." className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-2 dark:bg-slate-900 border-transparent focus:border-indigo-500 outline-none shadow-sm dark:text-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                      <input type="text" placeholder="Buscar título, compositor..." className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-2 dark:bg-slate-900 border-transparent focus:border-indigo-500 outline-none shadow-sm dark:text-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -447,7 +438,6 @@
                   </div>
                 )}
 
-                {/* VISTA LECTURA */}
                 {currentView === 'view' && activeSong && (
                   <div className="animate-in zoom-in-95">
                     <div className="flex justify-between items-center mb-8 print:hidden">
@@ -502,7 +492,6 @@
                   </div>
                 )}
 
-                {/* VISTA CULTO (MODO PRESENTACIÓN) */}
                 {currentView === 'playlistView' && activePlaylist && (
                   <div className="animate-in pb-40">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4 border-b dark:border-slate-800 pb-6">
@@ -555,7 +544,7 @@
                                     <p className="text-xl opacity-60 italic dark:text-slate-400">{s.artist} • [{s.musicalKey}]</p>
                                 </div>
                               </div>
-                              <div className="text-2xl overflow-x-auto" translate="no">{renderLyrics(s.lyrics, 0)}</div>
+                              <div className="text-2xl overflow-x-auto notranslate" translate="no">{renderLyrics(s.lyrics, 0)}</div>
                             </div>
                           );
                         })}
@@ -564,7 +553,6 @@
                   </div>
                 )}
 
-                {/* EDITOR */}
                 {currentView === 'edit' && (
                   <div className="animate-in pb-20">
                     <div className="flex justify-between items-center mb-8">
@@ -587,7 +575,7 @@
                       </button>
                       <textarea placeholder="Pega letra con acordes aquí..." className="w-full h-96 p-6 rounded-3xl border-2 dark:bg-slate-900 dark:border-slate-800 dark:text-white outline-none font-mono text-sm leading-relaxed shadow-sm custom-scrollbar" value={editLyrics} onChange={e => setEditLyrics(e.target.value)} />
                       <button className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-xl hover:bg-indigo-700 active:scale-95 transition-all" onClick={handleSave}>
-                        GUARDAR ALABANZA
+                        GUARDAR EN MI CORARIO
                       </button>
                     </div>
                   </div>
@@ -634,7 +622,7 @@
               {/* MODAL AÑADIR A CULTO */}
               {showAddSongModal && activePlaylist && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in">
-                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-md w-full shadow-2xl max-h-[80vh] flex flex-col">
+                  <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl max-h-[80vh] flex flex-col">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-xl font-bold truncate pr-4 dark:text-white">Añadir a {activePlaylist.name}</h3>
                       <button onClick={()=>setShowAddSongModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full dark:text-white"><Icon name="x" size={20}/></button>
