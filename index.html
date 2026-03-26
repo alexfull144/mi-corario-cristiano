@@ -90,7 +90,7 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "corario-final-v25";
+        const appId = "corario-final-v26";
 
         window.FB_INSTANCE = { auth, db, appId, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, signInAnonymously, onAuthStateChanged, signInWithCustomToken };
     </script>
@@ -154,6 +154,7 @@
           const audioCtxRef = useRef(null);
           const metronomeIntervalRef = useRef(null);
 
+          // Auth
           useEffect(() => {
             const init = async () => {
                 try {
@@ -168,6 +169,7 @@
             return () => unsub();
           }, []);
 
+          // Data
           useEffect(() => {
             if (!user) return;
             const songsCol = fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs');
@@ -183,6 +185,7 @@
             return () => { unsubS(); unsubP(); };
           }, [user]);
 
+          // Metrónomo
           useEffect(() => {
             if (isMetronomePlaying) {
               metronomeIntervalRef.current = setInterval(() => {
@@ -199,6 +202,7 @@
             return () => { if(metronomeIntervalRef.current) clearInterval(metronomeIntervalRef.current); };
           }, [isMetronomePlaying, bpm]);
 
+          // Scroll
           useEffect(() => {
             if (isScrolling) {
               const interval = setInterval(() => window.scrollBy(0, scrollSpeed), 50);
@@ -259,11 +263,12 @@
             if (!editLyrics) return showToast("Pega la letra primero", "error");
             setIsAiLoading(true);
 
-            const apiKey = ""; // El entorno inyecta la clave automáticamente
+            // CLAVE PERSONAL DEL USUARIO
+            const apiKey = "AIzaSyB8eQAgc68ME2eS0pq5WW1fEVwZ3shKaUQ"; 
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             const systemPrompt = "Actúa como músico experto. Re-armoniza la canción con acordes avanzados de piano. Devuelve SOLAMENTE la letra con los acordes entre corchetes [Acorde] integrados en el texto. Usa Cifrado Americano. Sin comentarios.";
 
-            const fetchWithRetry = async (retries = 5, delay = 1000) => {
+            const fetchWithRetry = async (retries = 3, delay = 1000) => {
               try {
                 const res = await fetch(url, {
                   method: 'POST',
@@ -292,7 +297,7 @@
                 showToast("¡IA: Rearmonización lista!");
               }
             } catch (e) { 
-              showToast("Error de conexión con la IA", "error"); 
+              showToast("Error de conexión con la IA. Reintenta.", "error"); 
             } finally {
               setIsAiLoading(false);
             }
@@ -368,15 +373,32 @@
               
               {toast && <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce ${toast.type === 'error' ? 'bg-red-600' : 'bg-indigo-600'} text-white`}>{toast.message}</div>}
 
+              {/* HEADER CORREGIDO: Logo a la izquierda, botones a la derecha */}
               <header className="sticky top-0 z-50 bg-indigo-700 dark:bg-indigo-900 text-white p-4 shadow-lg print:hidden">
-                <div className="max-w-4xl mx-auto flex justify-between items-center">
-                  <div className="flex flex-row items-center gap-2 cursor-pointer" onClick={() => { setCurrentView('list'); setPlaylistMode('list'); }}>
-                    <Icon name="music" size={28} />
+                <div className="max-w-4xl mx-auto flex flex-row justify-between items-center w-full">
+                  {/* Contenedor del Logo */}
+                  <div className="flex flex-row items-center gap-2 cursor-pointer shrink-0" onClick={() => { setCurrentView('list'); setPlaylistMode('list'); }}>
+                    <Icon name="music" size={28} className="text-indigo-200" />
                     <h1 className="text-xl font-black italic uppercase tracking-tighter leading-none">Corario AI</h1>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><Icon name={isDarkMode ? "sun" : "moon"} /></button>
-                    {currentView === 'list' && <button className="bg-white text-indigo-700 px-4 py-1.5 rounded-full font-bold text-sm shadow-md hover:scale-105" onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }}>+ Nueva</button>}
+
+                  {/* Contenedor de Acciones (Botón Noche y Nuevo) */}
+                  <div className="flex flex-row items-center gap-2 shrink-0">
+                    <button 
+                      onClick={() => setIsDarkMode(!isDarkMode)} 
+                      className="p-2.5 hover:bg-white/10 rounded-full transition-all flex items-center justify-center active:scale-90"
+                      title="Cambiar tema"
+                    >
+                      <Icon name={isDarkMode ? "sun" : "moon"} size={22} />
+                    </button>
+                    {currentView === 'list' && (
+                      <button 
+                        className="bg-white text-indigo-700 px-4 py-2 rounded-full font-bold text-sm shadow-md hover:scale-105 active:scale-95 transition-all whitespace-nowrap"
+                        onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }}
+                      >
+                        + Nueva
+                      </button>
+                    )}
                   </div>
                 </div>
               </header>
@@ -392,7 +414,7 @@
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {activeTab === 'songs' ? filteredSongs.map(s => (
                             <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view')}} className="p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 hover:border-indigo-500 cursor-pointer flex justify-between items-center shadow-sm group transition-all">
-                                <div><h3 className="font-bold text-lg group-hover:text-indigo-600">{s.title}</h3><p className="text-xs opacity-50 uppercase tracking-widest">{s.artist} • [{s.musicalKey || 'Tono'}]</p></div>
+                                <div><h3 className="font-bold text-lg group-hover:text-indigo-600">{s.title}</h3><p className="text-xs opacity-50 uppercase tracking-widest font-mono">{s.artist} • [{s.musicalKey || 'Tono'}]</p></div>
                                 <Icon name="chevron-right" className="opacity-20" />
                             </div>
                         )) : <>
@@ -471,7 +493,7 @@
                           if (!s) return null;
                           return (
                             <div key={idx} className="flex items-center p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 dark:border-slate-800 shadow-sm transition-all group">
-                              <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black mr-4">{idx+1}</div>
+                              <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black mr-4 shrink-0">{idx+1}</div>
                               <div className="flex-1 cursor-pointer truncate" onClick={() => {setActiveSongId(s.id); setCurrentView('view')}}>
                                 <h4 className="font-bold text-lg dark:text-white">{s.title}</h4>
                                 <p className="text-sm opacity-50 tracking-wider font-mono uppercase">{s.artist} • [{s.musicalKey}]</p>
