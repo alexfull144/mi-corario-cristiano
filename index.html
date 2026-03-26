@@ -43,13 +43,23 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: "" };
+        // CONFIGURACIÓN DE FIREBASE (Usa las del entorno o una demo por defecto)
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { 
+            apiKey: "demo-key", 
+            authDomain: "corario-demo.firebaseapp.com", 
+            projectId: "corario-demo", 
+            storageBucket: "corario-demo.appspot.com", 
+            messagingSenderId: "000", 
+            appId: "000" 
+        };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'corario-ai-v1';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'corario-pro-v1';
 
-        window.FB_CORE = { auth, db, appId, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, signInAnonymously, signInWithCustomToken, onAuthStateChanged };
+        // Exportar para que React lo vea
+        window.FB_INSTANCE = { auth, db, appId, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, signInAnonymously, signInWithCustomToken, onAuthStateChanged };
     </script>
 
     <!-- Código de la Aplicación -->
@@ -70,7 +80,7 @@
         };
 
         function App() {
-          const fb = window.FB_CORE;
+          const fb = window.FB_INSTANCE;
           
           const [user, setUser] = useState(null);
           const [songs, setSongs] = useState([]);
@@ -78,22 +88,28 @@
           const [activeSongId, setActiveSongId] = useState(null);
           const [searchQuery, setSearchQuery] = useState('');
           const [isDarkMode, setIsDarkMode] = useState(false);
+          const [activeTab, setActiveTab] = useState('songs');
 
+          // Estilos Visuales
           const [textSize, setTextSize] = useState(18);
           const [fontFamily, setFontFamily] = useState('font-sans');
           const [lyricColor, setLyricColor] = useState('default');
           const [chordColor, setChordColor] = useState('default');
           const [showStylePanel, setShowStylePanel] = useState(false);
 
+          // Herramientas Musicales
           const [isScrolling, setIsScrolling] = useState(false);
           const [scrollSpeed, setScrollSpeed] = useState(2);
           const [bpm, setBpm] = useState(120);
           const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
           const [transposeSteps, setTransposeSteps] = useState(0);
+          
+          // Inteligencia Artificial
           const [isAiLoading, setIsAiLoading] = useState(false);
           const [aiAnalysis, setAiAnalysis] = useState(null);
           const [toast, setToast] = useState(null);
 
+          // Editor
           const [editTitle, setEditTitle] = useState('');
           const [editArtist, setEditArtist] = useState('');
           const [editKey, setEditKey] = useState('');
@@ -102,34 +118,40 @@
           const audioCtxRef = useRef(null);
           const metronomeIntervalRef = useRef(null);
 
+          // 1. AUTENTICACIÓN
           useEffect(() => {
             if (!fb) return;
             const initAuth = async () => {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await fb.signInWithCustomToken(fb.auth, __initial_auth_token);
-                } else {
-                    await fb.signInAnonymously(fb.auth);
-                }
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await fb.signInWithCustomToken(fb.auth, __initial_auth_token);
+                    } else {
+                        await fb.signInAnonymously(fb.auth);
+                    }
+                } catch (e) { console.error("Auth Error", e); }
             };
             initAuth();
             const unsub = fb.onAuthStateChanged(fb.auth, (u) => setUser(u));
             return () => unsub();
           }, [fb]);
 
+          // 2. CARGA DE DATOS
           useEffect(() => {
             if (!user || !fb) return;
             const songsPath = fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs');
             const unsubSongs = fb.onSnapshot(songsPath, (snap) => {
                 setSongs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-            });
+            }, (err) => console.error("Firestore Error", err));
             return () => unsubSongs();
           }, [user, fb]);
 
+          // 3. MOTOR DE TRANSPOSICIÓN
           const transposeChord = (chordStr, steps) => {
             if (!chordStr || steps === 0) return chordStr;
             const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
             const esNotes = ['Do', 'Do#', 'Re', 'Re#', 'Mi', 'Fa', 'Fa#', 'Sol', 'Sol#', 'La', 'La#', 'Si'];
             const map = { 'Db':'C#', 'Eb':'D#', 'Gb':'F#', 'Ab':'G#', 'Bb':'A#', 'Reb':'Do#', 'Mib':'Re#', 'Solb':'Fa#', 'Lab':'Sol#', 'Sib':'La#' };
+            
             return chordStr.replace(/([A-G]|Do|Re|Mi|Fa|Sol|La|Si)[#b]?/gi, (m) => {
               let note = m.charAt(0).toUpperCase() + m.slice(1).toLowerCase();
               if (map[note]) note = map[note];
@@ -167,8 +189,8 @@
             ));
           };
 
+          // 4. INTELIGENCIA ARTIFICIAL (GEMINI)
           const askGemini = async (prompt) => {
-            if (!user) { showToast("Cargando conexión...", "error"); return null; }
             setIsAiLoading(true);
             const apiKey = "gen-lang-client-0332007452";
             try {
@@ -185,28 +207,41 @@
 
           const handleReharmonize = async () => {
             if (!editLyrics) return showToast("Pega una letra primero", "error");
-            const r = await askGemini(`Actúa como un músico experto. Re-armoniza la siguiente canción con acordes avanzados (7mas, 9nas). REGLAS: 1. Devuelve SOLAMENTE la letra con acordes en corchetes [Acorde]. 2. No incluyas explicaciones. Letra: \n${editLyrics}`);
+            const r = await askGemini(`Actúa como músico profesional. RE-ARMONIZA la siguiente canción con acordes avanzados (7mas, 9nas, tensiones). REGLAS: 1. Devuelve SOLAMENTE la letra con acordes nuevos en corchetes [Acorde]. 2. Prohibido hablar o explicar. Letra: \n${editLyrics}`);
             if (r) { 
                 const cleaned = r.replace(/```(text|markdown)?/g, '').replace(/```/g, '').trim();
                 setEditLyrics(cleaned); 
-                showToast("¡IA: Rearmonización lista!"); 
+                showToast("¡Rearmonización aplicada!"); 
             }
           };
 
+          const handleDevotional = async () => {
+            const activeSong = songs.find(s => s.id === activeSongId);
+            const r = await askGemini(`Genera un devocional cristiano breve para la alabanza "${activeSong.title}". Incluye: Versículo bíblico, reflexión para el ministerio de alabanza y oración corta. Letra: ${activeSong.lyrics}`);
+            if (r) setAiAnalysis(r);
+          };
+
+          // 5. ACCIONES DE GUARDADO
           const handleSave = async () => {
             if (!user) return showToast("Conectando con base de datos...", "error");
-            if (!editTitle.trim()) return showToast("Por favor, escribe un título", "error");
+            if (!editTitle.trim()) return showToast("Escribe el título de la canción", "error");
             
             try {
-                const data = { title: editTitle, artist: editArtist, musicalKey: editKey, lyrics: editLyrics, updatedAt: Date.now() };
+                const data = { 
+                    title: editTitle, 
+                    artist: editArtist, 
+                    musicalKey: editKey, 
+                    lyrics: editLyrics, 
+                    updatedAt: Date.now() 
+                };
                 if (activeSongId) {
                     await fb.updateDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs', activeSongId), data);
                 } else {
                     await fb.addDoc(fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs'), data);
                 }
                 setCurrentView('list');
-                showToast("¡Alabanza guardada!");
-            } catch (e) { showToast("Error al guardar", "error"); }
+                showToast("¡Alabanza Guardada!");
+            } catch (e) { showToast("Error al guardar en la nube", "error"); }
           };
 
           const formatBrackets = () => {
@@ -223,11 +258,12 @@
                 } else { result.push(lines[i]); }
             }
             setEditLyrics(result.join('\n'));
-            showToast("Acordes vinculados");
+            showToast("Acordes vinculados con éxito");
           };
 
           const showToast = (message, type = "success") => { setToast(message); setTimeout(() => setToast(null), 3000); };
 
+          // 6. HERRAMIENTAS (METRÓNOMO Y SCROLL)
           useEffect(() => {
             if (isMetronomePlaying) {
               metronomeIntervalRef.current = setInterval(() => {
@@ -236,7 +272,7 @@
                 const gain = audioCtxRef.current.createGain();
                 osc.connect(gain); gain.connect(audioCtxRef.current.destination);
                 osc.frequency.value = 800;
-                gain.gain.setValueAtTime(0.3, audioCtxRef.current.currentTime);
+                gain.gain.setValueAtTime(0.4, audioCtxRef.current.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, audioCtxRef.current.currentTime + 0.05);
                 osc.start(); osc.stop(audioCtxRef.current.currentTime + 0.05);
               }, 60000 / bpm);
@@ -250,6 +286,7 @@
             return () => clearInterval(interval);
           }, [isScrolling, scrollSpeed]);
 
+          // Filtros de Búsqueda
           const filteredSongs = songs.filter(s => 
             s.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
             (s.artist && s.artist.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -257,12 +294,11 @@
             (s.lyrics && s.lyrics.toLowerCase().includes(searchQuery.toLowerCase()))
           );
 
-          const activeSong = songs.find(s => s.id === activeSongId);
-
           return (
             <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'} pb-24`}>
               {toast && <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce">{toast}</div>}
 
+              {/* HEADER */}
               <header className="sticky top-0 z-50 bg-indigo-700 text-white p-4 flex justify-between items-center shadow-lg print:hidden">
                 <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('list')}>
                   <Icon name="music" size={24} />
@@ -279,8 +315,13 @@
               </header>
 
               <main className="max-w-4xl mx-auto p-4 md:p-8">
+                {/* LISTA */}
                 {currentView === 'list' && (
                   <div className="animate-in">
+                    <div className="flex gap-2 p-1 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-8">
+                        <button onClick={() => setActiveTab('songs')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'songs' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Mis Alabanzas</button>
+                        <button onClick={() => setActiveTab('playlists')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'playlists' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Cultos</button>
+                    </div>
                     <div className="relative mb-8">
                       <div className="absolute left-4 top-3.5 opacity-30"><Icon name="search" size={20} /></div>
                       <input type="text" placeholder="Busca por letra, título, acorde o compositor..." className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-2 dark:bg-slate-900 border-transparent focus:border-indigo-500 outline-none shadow-sm transition-all" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -290,26 +331,37 @@
                             <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setAiAnalysis(null); setCurrentView('view')}} className="p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 hover:border-indigo-500 cursor-pointer flex justify-between items-center shadow-sm transition-all group">
                                 <div className="overflow-hidden pr-2">
                                     <h3 className="font-bold text-lg truncate group-hover:text-indigo-600 transition-colors">{s.title}</h3>
-                                    <p className="text-xs opacity-50 uppercase">{s.artist || 'Desconocido'} • [{s.musicalKey || 'Sin Tono'}]</p>
+                                    <p className="text-xs opacity-50 uppercase">{s.artist || 'Desconocido'} • [{s.musicalKey || 'Tono'}]</p>
                                 </div>
                                 <Icon name="chevron-right" className="opacity-20 group-hover:opacity-100 transition-opacity" size={20} />
                             </div>
                         ))}
+                        {filteredSongs.length === 0 && <div className="col-span-full py-12 text-center opacity-30 italic"><p>No se encontraron alabanzas.</p></div>}
                     </div>
                   </div>
                 )}
 
+                {/* VISTA LECTURA */}
                 {currentView === 'view' && activeSong && (
                   <div className="animate-in zoom-in-95">
                     <div className="flex justify-between items-center mb-8 print:hidden">
                       <button className="flex items-center gap-2 text-indigo-600 font-bold hover:underline" onClick={() => {setCurrentView('list'); setIsScrolling(false)}}><Icon name="chevron-left" size={18} /> Volver</button>
                       <div className="flex gap-2">
+                        <button className="p-3 bg-amber-100 text-amber-700 rounded-2xl" onClick={handleDevotional}>{isAiLoading ? <Icon name="loader-2" size={20} className="animate-spin" /> : <Icon name="book-open" size={20}/>}</button>
                         <button className="p-3 bg-indigo-100 text-indigo-700 rounded-2xl" onClick={() => setShowStylePanel(!showStylePanel)}><Icon name="palette" size={20}/></button>
                         <button className="p-3 bg-slate-800 text-white rounded-2xl" onClick={() => window.print()}><Icon name="printer" size={20}/></button>
                         <button className="p-3 border-2 rounded-2xl" onClick={() => { setEditTitle(activeSong.title); setEditArtist(activeSong.artist); setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey); setCurrentView('edit'); }}><Icon name="edit-2" size={20}/></button>
                         <button className="p-3 text-red-500 hover:bg-red-50 rounded-2xl" onClick={async () => { if(confirm("¿Borrar alabanza?")) { await fb.deleteDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs', activeSong.id)); setCurrentView('list'); } }}><Icon name="trash-2" size={20}/></button>
                       </div>
                     </div>
+
+                    {aiAnalysis && (
+                        <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-400 p-6 rounded-r-2xl mb-8 relative animate-in">
+                            <button onClick={() => setAiAnalysis(null)} className="absolute top-4 right-4"><Icon name="x" size={16}/></button>
+                            <h4 className="font-black text-amber-800 text-xs mb-2 flex items-center gap-1 uppercase tracking-widest"><Icon name="sparkles" size={14}/> Inspiración Espiritual</h4>
+                            <div className="italic text-amber-900 dark:text-amber-100 text-sm whitespace-pre-wrap leading-relaxed">{aiAnalysis}</div>
+                        </div>
+                    )}
 
                     {showStylePanel && (
                         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 shadow-xl mb-8 print:hidden animate-in">
@@ -356,10 +408,11 @@
                   </div>
                 )}
 
+                {/* EDITOR */}
                 {currentView === 'edit' && (
                   <div className="animate-in pb-20">
                     <div className="flex justify-between items-center mb-8">
-                      <h2 className="text-3xl font-black uppercase tracking-tighter">Editor de Alabanza</h2>
+                      <h2 className="text-3xl font-black uppercase tracking-tighter">Editor</h2>
                       <div className="flex gap-2">
                         <button onClick={() => setCurrentView('list')} className="px-4 py-2 font-bold opacity-50 hover:opacity-100 transition-opacity">Cerrar</button>
                         <button onClick={handleReharmonize} className="bg-indigo-100 text-indigo-700 px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-200 transition-all shadow-sm" disabled={isAiLoading}>
@@ -374,9 +427,9 @@
                         <input type="text" placeholder="Tono inicial (Ej: Do Mayor)..." className="w-full p-4 rounded-2xl border-2 dark:bg-slate-900 outline-none focus:border-indigo-500 font-bold shadow-sm" value={editKey} onChange={e => setEditKey(e.target.value)} />
                       </div>
                       <button onClick={formatBrackets} className="w-full py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold flex items-center justify-center gap-2 border-2 border-indigo-100 shadow-sm active:scale-[0.99] hover:bg-indigo-100 transition-all">
-                        <Icon name="wand-2" size={20}/> Vincular Acordes Automáticamente (Obligatorio para Transportar)
+                        <Icon name="wand-2" size={20}/> Vincular Acordes Automáticamente (Para Transportar)
                       </button>
-                      <textarea placeholder="Pega letra con acordes aquí. Si los acordes están arriba del texto, pulsa el botón de arriba después de pegar." className="w-full h-96 p-6 rounded-3xl border-2 dark:bg-slate-900 outline-none font-mono text-sm leading-relaxed shadow-sm custom-scrollbar" value={editLyrics} onChange={e => setEditLyrics(e.target.value)} />
+                      <textarea placeholder="Pega letra con acordes aquí. Si los acordes están arriba del texto, pulsa el botón azul después de pegar." className="w-full h-96 p-6 rounded-3xl border-2 dark:bg-slate-900 outline-none font-mono text-sm leading-relaxed shadow-sm custom-scrollbar" value={editLyrics} onChange={e => setEditLyrics(e.target.value)} />
                       <button className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-xl hover:bg-indigo-700 active:scale-95 transition-all" onClick={handleSave}>
                         GUARDAR ALABANZA
                       </button>
@@ -385,6 +438,7 @@
                 )}
               </main>
 
+              {/* CONTROLES SCROLL */}
               {isScrolling && (currentView === 'view') && (
                 <div className="fixed bottom-8 right-8 flex items-center gap-3 p-3 bg-white/90 dark:bg-slate-800/90 rounded-full shadow-2xl border-2 print:hidden z-[100] animate-in slide-in-from-right-4">
                   <button className="p-3 bg-slate-100 dark:bg-slate-700 rounded-full active:scale-90 transition-transform" onClick={() => setScrollSpeed(s => Math.max(1, s-1))}><Icon name="rewind" size={18}/></button>
