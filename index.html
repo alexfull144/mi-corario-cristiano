@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
     <title>Corario AI - Ministerio Musical</title>
-    <!-- Librerías de Producción (React, Tailwind, Lucide, Babel) -->
+    <!-- Librerías de Producción -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -67,10 +67,10 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-        // CONFIGURACIÓN DE FIREBASE (TU CÓDIGO)
+        // CONFIGURACIÓN DE FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyAqMDVdI0mjTf9Mdvg1SmkPUZaaxV8X2o4",
             authDomain: "mi-corario-pro.firebaseapp.com",
@@ -84,15 +84,15 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = "corario-pro-v21";
+        const appId = "corario-v22-final";
 
-        window.FB_INSTANCE = { auth, db, appId, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, signInAnonymously, onAuthStateChanged };
+        window.FB_CORE = { auth, db, appId, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, signInAnonymously, onAuthStateChanged, signInWithCustomToken };
     </script>
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // Componente Icono
+        // Componente Icono Robusto
         const Icon = ({ name, size = 24, className = "", spin = false }) => {
             const containerRef = useRef(null);
             useEffect(() => {
@@ -107,11 +107,11 @@
                     });
                 }
             }, [name, size, className, spin]);
-            return <span ref={containerRef} className="inline-flex items-center justify-center"></span>;
+            return <span ref={containerRef} className="icon-container"></span>;
         };
 
         function App() {
-          const fb = window.FB_INSTANCE;
+          const fb = window.FB_CORE;
           const [user, setUser] = useState(null);
           const [songs, setSongs] = useState([]);
           const [playlists, setPlaylists] = useState([]);
@@ -152,9 +152,13 @@
           const audioCtxRef = useRef(null);
           const metronomeIntervalRef = useRef(null);
 
-          // Auth
           useEffect(() => {
-            fb.signInAnonymously(fb.auth).catch(e => console.error(e));
+            const initAuth = async () => {
+              try {
+                await fb.signInAnonymously(fb.auth);
+              } catch (e) { console.error(e); }
+            };
+            initAuth();
             const unsub = fb.onAuthStateChanged(fb.auth, (u) => {
               setUser(u);
               setLoading(false);
@@ -162,7 +166,6 @@
             return () => unsub();
           }, []);
 
-          // Data
           useEffect(() => {
             if (!user) return;
             const unsubS = fb.onSnapshot(fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs'), (snap) => {
@@ -174,7 +177,7 @@
             return () => { unsubS(); unsubP(); };
           }, [user]);
 
-          // Metrónomo
+          // --- METRÓNOMO ---
           useEffect(() => {
             if (isMetronomePlaying) {
               metronomeIntervalRef.current = setInterval(() => {
@@ -191,7 +194,7 @@
             return () => clearInterval(metronomeIntervalRef.current);
           }, [isMetronomePlaying, bpm]);
 
-          // Scroll
+          // --- AUTO SCROLL ---
           useEffect(() => {
             if (isScrolling) {
               const interval = setInterval(() => window.scrollBy(0, scrollSpeed), 50);
@@ -223,19 +226,25 @@
               if (!line.trim()) return <div key={i} className="h-6"></div>;
               const parts = line.split(/(\[[^\]]+\])/g);
               let segments = [];
-              let lastChord = "";
-              parts.forEach(p => {
-                if (p.startsWith('[') && p.endsWith(']')) lastChord = p.slice(1, -1);
-                else { segments.push({ chord: lastChord, text: p }); lastChord = ""; }
+              let pendingChord = null;
+
+              parts.forEach((part) => {
+                if (part.startsWith('[') && part.endsWith(']')) {
+                  if (pendingChord) segments.push({ chord: pendingChord, text: '' });
+                  pendingChord = part.slice(1, -1);
+                } else {
+                  segments.push({ chord: pendingChord, text: part });
+                  pendingChord = null;
+                }
               });
-              if (lastChord) segments.push({ chord: lastChord, text: "" });
+              if (pendingChord) segments.push({ chord: pendingChord, text: '' });
 
               return (
                 <div key={i} className="lyric-line notranslate" translate="no">
                   {segments.map((seg, j) => (
                     <div key={j} className="chord-segment notranslate" translate="no">
                       <span className="chord-visual font-mono notranslate" translate="no" style={{ color: chordColorMap[chordColor], fontSize: `${textSize * 0.75}px` }}>
-                        {seg.chord ? transposeChord(seg.chord, steps) : '\u00A0'}
+                        {seg.chord ? transposeChord(seg.chord, steps) : ''}
                       </span>
                       <span className="text-visual notranslate" translate="no" style={{ color: lyricColorMap[lyricColor], fontSize: `${textSize}px` }}>
                         {seg.text || (seg.chord ? '\u00A0' : '')}
@@ -247,23 +256,27 @@
             });
           };
 
+          // --- IA GEMINI 2.5 (REPARADA) ---
           const handleIA = async () => {
-            if (!editLyrics) return;
+            if (!editLyrics) return showToast("Pega la letra primero", "error");
             setIsAiLoading(true);
-            const apiKey = "AIzaSyB8eQAgc68ME2eS0pq5WW1fEVwZ3shKaUQ"; // TU CLAVE INTEGRADA
+            const apiKey = "AIzaSyB8eQAgc68ME2eS0pq5WW1fEVwZ3shKaUQ"; 
             try {
               const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   contents: [{ parts: [{ text: editLyrics }] }],
-                  systemInstruction: { parts: [{ text: "Actúa como músico experto. Re-armoniza con acordes avanzados entre corchetes [Acorde]. Cifrado Americano. Devuelve SOLO el texto rearmonizado." }] }
+                  systemInstruction: { parts: [{ text: "Actúa como músico experto. Re-armoniza la canción con acordes avanzados entre corchetes [Acorde]. Cifrado Americano (A,B,C...). SOLO el texto rearmonizado." }] }
                 })
               });
               const data = await res.json();
-              const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-              if (text) setEditLyrics(text.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim());
-            } catch (e) { showToast("Error IA", "error"); }
+              const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (result) {
+                setEditLyrics(result.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim());
+                showToast("¡IA: Armonía aplicada!");
+              }
+            } catch (e) { showToast("Error de conexión IA", "error"); }
             setIsAiLoading(false);
           };
 
@@ -287,24 +300,43 @@
                 } else { newLyrics.push(current); }
             }
             setEditLyrics(newLyrics.join('\n'));
+            showToast("Acordes vinculados");
+          };
+
+          const handleSave = async () => {
+            if (!editTitle.trim()) return showToast("Falta el título", "error");
+            try {
+                const data = { title: editTitle, artist: editArtist, musicalKey: editKey, lyrics: editLyrics, updatedAt: Date.now() };
+                if (activeSongId) {
+                    await fb.updateDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs', activeSongId), data);
+                    showToast("¡Alabanza Actualizada!");
+                } else {
+                    await fb.addDoc(fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs'), data);
+                    showToast("¡Alabanza Guardada!");
+                }
+                setCurrentView('list');
+                setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey('');
+            } catch (e) { showToast("Error al guardar", "error"); }
           };
 
           const showToast = (message, type = "success") => { setToast({message, type}); setTimeout(() => setToast(null), 3000); };
 
           const filteredSongs = songs.filter(s => s.title.toLowerCase().includes(searchQuery.toLowerCase()) || (s.artist && s.artist.toLowerCase().includes(searchQuery.toLowerCase())));
 
-          if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black animate-pulse">CORARIO AI...</div>;
+          const activeSong = songs.find(s => s.id === activeSongId);
+
+          if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black animate-pulse">CORARIO PRO...</div>;
 
           return (
-            <div className={`min-h-screen transition-all ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`}>
+            <div className={`min-h-screen transition-all notranslate ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`} translate="no">
               
               {toast && <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce ${toast.type === 'error' ? 'bg-red-600' : 'bg-indigo-600'} text-white`}>{toast.message}</div>}
 
               <header className="sticky top-0 z-50 bg-indigo-700 dark:bg-indigo-900 text-white p-4 flex justify-between items-center shadow-lg print:hidden">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={() => setCurrentView('list')}><Icon name="music" size={24} /><h1 className="text-xl font-black italic uppercase">Corario AI</h1></div>
+                <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setCurrentView('list'); setPlaylistMode('list'); }}><Icon name="music" size={24} /><h1 className="text-xl font-black italic uppercase tracking-tighter">Corario AI</h1></div>
                 <div className="flex items-center gap-4">
-                  <button onClick={() => setIsDarkMode(!isDarkMode)}><Icon name={isDarkMode ? "sun" : "moon"} /></button>
-                  {currentView === 'list' && <button className="bg-white text-indigo-700 px-4 py-1.5 rounded-full font-bold text-sm shadow-md" onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setCurrentView('edit'); }}>+ Nueva</button>}
+                  <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 hover:bg-white/10 rounded-full"><Icon name={isDarkMode ? "sun" : "moon"} /></button>
+                  {currentView === 'list' && <button className="bg-white text-indigo-700 px-4 py-1.5 rounded-full font-bold text-sm shadow-md" onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }}>+ Nueva</button>}
                 </div>
               </header>
 
@@ -312,22 +344,22 @@
                 {currentView === 'list' && (
                   <div className="animate-in">
                     <div className="flex gap-2 p-1 bg-slate-200 dark:bg-slate-800 rounded-2xl mb-8">
-                        <button onClick={() => setActiveTab('songs')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'songs' ? 'bg-white text-indigo-600' : 'text-slate-500'}`}>Alabanzas</button>
-                        <button onClick={() => setActiveTab('playlists')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'playlists' ? 'bg-white text-indigo-600' : 'text-slate-500'}`}>Cultos</button>
+                        <button onClick={() => setActiveTab('songs')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'songs' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Alabanzas</button>
+                        <button onClick={() => setActiveTab('playlists')} className={`flex-1 py-3 rounded-xl font-bold transition-all ${activeTab === 'playlists' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Cultos</button>
                     </div>
-                    <div className="relative mb-8"><Icon name="search" className="absolute left-4 top-3.5 opacity-30" size={20} /><input type="text" placeholder="Buscar..." className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-2 dark:bg-slate-900 border-transparent focus:border-indigo-500 outline-none shadow-sm dark:text-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
+                    <div className="relative mb-8"><Icon name="search" className="absolute left-4 top-3.5 opacity-30" size={20} /><input type="text" placeholder="Buscar título o compositor..." className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-2 dark:bg-slate-900 border-transparent focus:border-indigo-500 outline-none shadow-sm dark:text-white" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} /></div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {activeTab === 'songs' ? filteredSongs.map(s => (
-                            <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view')}} className="p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 hover:border-indigo-500 cursor-pointer flex justify-between items-center shadow-sm">
-                                <div><h3 className="font-bold text-lg">{s.title}</h3><p className="text-xs opacity-50 uppercase">{s.artist} • [{s.musicalKey}]</p></div>
+                            <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view')}} className="p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 hover:border-indigo-500 cursor-pointer flex justify-between items-center shadow-sm group transition-all">
+                                <div><h3 className="font-bold text-lg group-hover:text-indigo-600">{s.title}</h3><p className="text-xs opacity-50 uppercase tracking-widest">{s.artist} • [{s.musicalKey || 'Tono'}]</p></div>
                                 <Icon name="chevron-right" className="opacity-20" />
                             </div>
                         )) : <>
-                            <button onClick={() => setShowNewPlaylistModal(true)} className="p-8 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-3xl text-slate-400 font-bold">+ Nuevo Culto</button>
+                            <button onClick={() => setShowNewPlaylistModal(true)} className="p-10 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-3xl text-slate-400 font-bold hover:bg-indigo-50 transition-colors">+ Nuevo Culto</button>
                             {playlists.map(p => (
                                 <div key={p.id} onClick={() => {setActivePlaylistId(p.id); setPlaylistMode('list'); setCurrentView('playlistView')}} className="p-6 bg-white dark:bg-slate-900 rounded-3xl border-2 hover:border-indigo-500 cursor-pointer shadow-sm">
-                                    <h3 className="font-black text-xl"><Icon name="list-music" className="text-indigo-500 mr-2" /> {p.name}</h3>
-                                    <p className="text-sm opacity-50">{p.songs?.length || 0} canciones</p>
+                                    <h3 className="font-black text-xl flex items-center gap-2"><Icon name="list-music" className="text-indigo-500" /> {p.name}</h3>
+                                    <p className="text-sm opacity-50">{p.songs?.length || 0} canciones preparadas</p>
                                 </div>
                             ))}
                         </>}
@@ -335,56 +367,166 @@
                   </div>
                 )}
 
-                {currentView === 'view' && songs.find(s => s.id === activeSongId) && (
+                {currentView === 'view' && activeSong && (
                   <div className="animate-in pb-32">
                     <div className="flex justify-between items-center mb-8 print:hidden">
-                      <button className="flex items-center gap-2 text-indigo-600 font-bold" onClick={() => setCurrentView('list')}><Icon name="chevron-left" size={18} /> Volver</button>
+                      <button className="flex items-center gap-2 text-indigo-600 font-bold hover:underline" onClick={() => setCurrentView('list')}><Icon name="chevron-left" size={18} /> Volver</button>
                       <div className="flex gap-2">
-                        <button className="p-3 bg-indigo-100 text-indigo-700 rounded-2xl" onClick={() => setShowStylePanel(!showStylePanel)}><Icon name="palette" size={20}/></button>
+                        <button className="p-3 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 rounded-2xl" onClick={() => setShowStylePanel(!showStylePanel)}><Icon name="palette" size={20}/></button>
                         <button className="p-3 bg-slate-800 text-white rounded-2xl" onClick={() => window.print()}><Icon name="printer" size={20}/></button>
+                        <button className="p-3 border-2 rounded-2xl dark:border-slate-800" onClick={() => { 
+                            setEditTitle(activeSong.title); 
+                            setEditArtist(activeSong.artist); 
+                            setEditLyrics(activeSong.lyrics); 
+                            setEditKey(activeSong.musicalKey); 
+                            setCurrentView('edit'); 
+                        }}><Icon name="edit-2" size={20}/></button>
+                        <button className="p-3 text-red-500" onClick={async () => { if(confirm("¿Borrar alabanza?")) { await fb.deleteDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs', activeSong.id)); setCurrentView('list'); } }}><Icon name="trash-2" size={20}/></button>
                       </div>
                     </div>
 
                     {showStylePanel && (
                         <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border-2 shadow-xl mb-8 print:hidden animate-in">
                             <div className="grid grid-cols-2 gap-6">
-                                <div><label className="text-xs font-black uppercase text-slate-400 block mb-3">Color Acordes</label><div className="flex gap-2">{Object.keys(chordColorMap).map(c => (<button key={c} onClick={()=>setChordColor(c)} className={`w-8 h-8 rounded-full border-2 ${chordColor===c?'border-black dark:border-white scale-110':'border-transparent'}`} style={{backgroundColor: chordColorMap[c]}}></button>))}</div></div>
-                                <div><label className="text-xs font-black uppercase text-slate-400 block mb-3">Color Letra</label><div className="flex gap-2">{Object.keys(lyricColorMap).map(c => (<button key={c} onClick={()=>setLyricColor(c)} className={`w-8 h-8 rounded-full border-2 ${lyricColor===c?'border-black dark:border-white scale-110':'border-transparent'}`} style={{backgroundColor: lyricColorMap[c]}}></button>))}</div></div>
+                                <div><label className="text-xs font-black uppercase text-slate-400 block mb-3">Color Acordes</label><div className="flex gap-2">{Object.keys(chordColorMap).map(c => (<button key={c} onClick={()=>setChordColor(c)} className={`w-8 h-8 rounded-full border-2 ${chordColor===c?'border-black dark:border-white scale-110 shadow-md':'border-transparent'}`} style={{backgroundColor: chordColorMap[c]}}></button>))}</div></div>
+                                <div><label className="text-xs font-black uppercase text-slate-400 block mb-3">Color Letra</label><div className="flex gap-2">{Object.keys(lyricColorMap).map(c => (<button key={c} onClick={()=>setLyricColor(c)} className={`w-8 h-8 rounded-full border-2 ${lyricColor===c?'border-black dark:border-white scale-110 shadow-md':'border-transparent'}`} style={{backgroundColor: lyricColorMap[c]}}></button>))}</div></div>
                             </div>
                         </div>
                     )}
 
-                    <div className="mb-10"><h2 className="text-5xl font-black mb-2 leading-tight">{songs.find(s => s.id === activeSongId).title}</h2><p className="text-xl opacity-60 italic mb-6">{songs.find(s => s.id === activeSongId).artist}</p>
+                    <div className="mb-10"><h2 className="text-5xl font-black mb-2 leading-tight">{activeSong.title}</h2><p className="text-xl opacity-60 italic mb-6">{activeSong.artist || 'Compositor Desconocido'}</p>
                       <div className="flex flex-wrap gap-4 print:hidden items-center">
-                        <div className="flex items-center bg-white dark:bg-slate-900 rounded-2xl border-2 p-1"><button className="w-10 h-10 font-black" onClick={() => setTransposeSteps(s => s - 1)}>-</button><span className="px-4 text-indigo-600 font-black min-w-[80px] text-center">{transposeSteps === 0 ? 'Tono' : transposeSteps}</span><button className="w-10 h-10 font-black" onClick={() => setTransposeSteps(s => s + 1)}>+</button></div>
-                        <div className="flex items-center bg-white dark:bg-slate-900 rounded-2xl border-2 p-1"><button className="px-3" onClick={() => setBpm(b => Math.max(40, b - 5))}>-</button><span className="font-bold text-xs w-16 text-center">{bpm} BPM</span><button className="px-3" onClick={() => setBpm(b => Math.min(240, b + 5))}>+</button><button className={`ml-2 p-2 rounded-xl ${isMetronomePlaying?'bg-red-500':'bg-teal-500'} text-white shadow-md`} onClick={() => setIsMetronomePlaying(!isMetronomePlaying)}><Icon name={isMetronomePlaying ? "pause" : "play"} size={16}/></button></div>
+                        <div className="flex items-center bg-white dark:bg-slate-900 rounded-2xl border-2 p-1 shadow-sm"><button className="w-10 h-10 font-black hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setTransposeSteps(s => s - 1)}>-</button><span className="px-4 text-indigo-600 font-black min-w-[80px] text-center">{transposeSteps === 0 ? (activeSong.musicalKey || 'Tono') : transposeChord(activeSong.musicalKey, transposeSteps)}</span><button className="w-10 h-10 font-black hover:bg-slate-100 dark:hover:bg-slate-800" onClick={() => setTransposeSteps(s => s + 1)}>+</button></div>
+                        <div className="flex items-center bg-white dark:bg-slate-900 rounded-2xl border-2 p-1 shadow-sm"><button className="px-3" onClick={() => setBpm(b => Math.max(40, b - 5))}>-</button><span className="font-bold text-xs w-16 text-center">{bpm} BPM</span><button className="px-3" onClick={() => setBpm(b => Math.min(240, b + 5))}>+</button><button className={`ml-2 p-2 rounded-xl ${isMetronomePlaying?'bg-red-500':'bg-teal-500'} text-white shadow-md`} onClick={() => setIsMetronomePlaying(!isMetronomePlaying)}><Icon name={isMetronomePlaying ? "pause" : "play"} size={16}/></button></div>
                       </div>
                     </div>
-                    <div className="space-y-1 pb-20">{renderLyrics(songs.find(s => s.id === activeSongId).lyrics)}</div>
+                    <div className="space-y-1 pb-20">{renderLyrics(activeSong.lyrics)}</div>
                   </div>
                 )}
 
                 {currentView === 'edit' && (
                   <div className="animate-in pb-20">
-                    <div className="flex justify-between items-center mb-8"><h2 className="text-3xl font-black dark:text-white">Editor</h2><div className="flex gap-2"><button onClick={() => setCurrentView('list')} className="px-4 py-2 font-bold opacity-50 dark:text-white">Cerrar</button><button onClick={handleIA} className="bg-indigo-100 text-indigo-700 px-6 py-2 rounded-xl font-bold flex items-center gap-2" disabled={isAiLoading}>{isAiLoading ? <Icon name="loader-2" spin /> : <Icon name="sparkles" size={18} />} Rearmonizar IA</button></div></div>
-                    <div className="space-y-4">
-                        <input type="text" placeholder="Título..." className="w-full p-4 rounded-2xl border-2 dark:bg-slate-900 dark:text-white outline-none focus:border-indigo-500 text-xl font-bold" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
-                        <div className="grid grid-cols-2 gap-4"><input type="text" placeholder="Artista..." className="w-full p-4 rounded-2xl border-2 dark:bg-slate-900 dark:text-white" value={editArtist} onChange={e => setEditArtist(e.target.value)} /><input type="text" placeholder="Tono..." className="w-full p-4 rounded-2xl border-2 dark:bg-slate-900 dark:text-white" value={editKey} onChange={e => setEditKey(e.target.value)} /></div>
-                        <button onClick={formatInternetChords} className="w-full py-4 bg-indigo-50 text-indigo-700 rounded-2xl font-bold flex items-center justify-center gap-2 border-2 border-indigo-100"><Icon name="wand-2" /> Vincular Acordes Automáticamente</button>
-                        <textarea placeholder="Letra con [Do]..." className="w-full h-96 p-6 rounded-3xl border-2 dark:bg-slate-900 dark:text-white font-mono text-sm leading-relaxed" value={editLyrics} onChange={e => setEditLyrics(e.target.value)} />
-                        <button className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-xl active:scale-95" onClick={async () => {
-                            await fb.addDoc(fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs'), { title: editTitle, artist: editArtist, musicalKey: editKey, lyrics: editLyrics, updatedAt: Date.now() });
-                            setCurrentView('list'); showToast("¡Guardada!");
-                        }}>GUARDAR ALABANZA</button>
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
+                        <h2 className="text-3xl font-black dark:text-white uppercase italic">{activeSongId ? 'Editando Alabanza' : 'Nueva Alabanza'}</h2>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <button onClick={() => setCurrentView('list')} className="px-4 py-2 font-bold opacity-50 dark:text-white">Cancelar</button>
+                            <button onClick={handleIA} className="flex-1 md:flex-none bg-indigo-100 text-indigo-700 px-6 py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-200 transition-all shadow-sm" disabled={isAiLoading}>{isAiLoading ? <Icon name="loader-2" spin /> : <Icon name="sparkles" size={18} />} IA Rearmonizar</button>
+                        </div>
                     </div>
+                    <div className="space-y-4">
+                        <input type="text" placeholder="Título de la Alabanza..." className="w-full p-4 rounded-2xl border-2 dark:bg-slate-900 dark:text-white outline-none focus:border-indigo-500 text-xl font-bold shadow-sm" value={editTitle} onChange={e => setEditTitle(e.target.value)} />
+                        <div className="grid grid-cols-2 gap-4"><input type="text" placeholder="Compositor..." className="w-full p-4 rounded-2xl border-2 dark:bg-slate-900 dark:text-white outline-none focus:border-indigo-500 font-bold shadow-sm" value={editArtist} onChange={e => setEditArtist(e.target.value)} /><input type="text" placeholder="Tono (Ej: G)..." className="w-full p-4 rounded-2xl border-2 dark:bg-slate-900 dark:text-white outline-none focus:border-indigo-500 font-bold shadow-sm" value={editKey} onChange={e => setEditKey(e.target.value)} /></div>
+                        <button onClick={formatInternetChords} className="w-full py-4 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-2xl font-bold flex items-center justify-center gap-2 border-2 border-indigo-100 dark:border-indigo-800 shadow-sm active:scale-[0.99] transition-all"><Icon name="wand-2" /> Vincular Acordes Automáticamente</button>
+                        <textarea placeholder="Pega letra con [Acorde] aquí..." className="w-full h-96 p-6 rounded-3xl border-2 dark:bg-slate-900 dark:text-white font-mono text-sm leading-relaxed shadow-sm resize-none outline-none focus:border-indigo-500" value={editLyrics} onChange={e => setEditLyrics(e.target.value)} />
+                        <button className="w-full py-5 bg-indigo-600 text-white rounded-3xl font-black text-xl shadow-xl hover:bg-indigo-700 active:scale-95 transition-all" onClick={handleSave}>{activeSongId ? 'ACTUALIZAR CAMBIOS' : 'GUARDAR EN MI CORARIO'}</button>
+                    </div>
+                  </div>
+                )}
+                
+                {/* VISTA CULTO */}
+                {currentView === 'playlistView' && activePlaylist && (
+                  <div className="animate-in pb-40">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4 border-b dark:border-slate-800 pb-6">
+                        <div>
+                            <button onClick={() => { setCurrentView('list'); setIsScrolling(false); }} className="text-indigo-600 font-bold flex items-center gap-1 mb-2 hover:underline"><Icon name="chevron-left" size={16}/> Volver</button>
+                            <h2 className="text-4xl font-black dark:text-white">{activePlaylist.name}</h2>
+                        </div>
+                        <div className="flex gap-2 w-full md:w-auto">
+                            <button onClick={() => { const url = window.location.href; navigator.clipboard.writeText(url); showToast("Link copiado"); }} className="p-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-2xl shadow-md"><Icon name="share-2" size={20} /></button>
+                            <button onClick={() => { setPlaylistMode(playlistMode === 'list' ? 'full' : 'list'); setIsScrolling(false); }} className={`flex-1 md:flex-none px-6 py-3 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-lg transition-all ${playlistMode === 'full' ? 'bg-indigo-600 text-white' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'}`}>
+                                <Icon name={playlistMode === 'list' ? "eye" : "layout-list"} size={20} /> {playlistMode === 'list' ? "Modo Presentación" : "Ver Lista"}
+                            </button>
+                            <button onClick={()=>setShowAddSongModal(true)} className="p-3 bg-indigo-600 text-white rounded-2xl shadow-lg hover:bg-indigo-700"><Icon name="plus" size={20}/></button>
+                        </div>
+                    </div>
+                    
+                    {playlistMode === 'list' ? (
+                      <div className="space-y-4">
+                        {activePlaylist.songs?.map((sid, idx) => {
+                          const s = songs.find(x => x.id === sid);
+                          if (!s) return null;
+                          return (
+                            <div key={idx} className="flex items-center p-5 bg-white dark:bg-slate-900 rounded-3xl border-2 dark:border-slate-800 shadow-sm transition-all">
+                              <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-black mr-4">{idx+1}</div>
+                              <div className="flex-1 cursor-pointer truncate" onClick={() => {setActiveSongId(s.id); setCurrentView('view')}}>
+                                <h4 className="font-bold text-lg dark:text-white">{s.title}</h4>
+                                <p className="text-sm opacity-50 tracking-wider font-mono uppercase">{s.artist} • [{s.musicalKey}]</p>
+                              </div>
+                              <button onClick={async ()=>{
+                                  const news = activePlaylist.songs.filter(id => id !== sid);
+                                  await fb.updateDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'playlists', activePlaylist.id), { songs: news });
+                              }} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg"><Icon name="trash-2" size={18}/></button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="space-y-40">
+                        {activePlaylist.songs?.map((sid, idx) => {
+                          const s = songs.find(x => x.id === sid);
+                          if (!s) return null;
+                          return (
+                            <div key={idx} className="song-page animate-in">
+                              <div className="mb-10 border-b-4 border-indigo-600/20 pb-4">
+                                <span className="text-7xl font-black text-indigo-600/10 block mb-2">{idx + 1}</span>
+                                <div><h3 className="text-4xl font-black dark:text-white leading-tight uppercase italic">{s.title}</h3><p className="text-xl opacity-60 italic dark:text-slate-400">{s.artist} • [{s.musicalKey}]</p></div>
+                              </div>
+                              <div className="text-2xl overflow-x-auto notranslate" translate="no">{renderLyrics(s.lyrics, 0)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </main>
 
-              {(currentView === 'view' || currentView === 'playlistView') && (
-                <div className="fixed bottom-8 right-8 flex items-center gap-3 p-3 bg-white/90 dark:bg-slate-800/90 rounded-full shadow-2xl border-2 print:hidden z-[100]">
-                  {isScrolling && <div className="flex items-center gap-2 pr-2 animate-in"><button className="p-3 bg-slate-100 dark:bg-slate-700 rounded-full" onClick={() => setScrollSpeed(s => Math.max(1, s-1))}><Icon name="rewind" size={18}/></button><span className="font-black text-indigo-600 px-1 text-sm">{scrollSpeed}x</span><button className="p-3 bg-slate-100 dark:bg-slate-700 rounded-full" onClick={() => setScrollSpeed(s => Math.min(10, s+1))}><Icon name="fast-forward" size={18}/></button></div>}
-                  <button onClick={() => setIsScrolling(!isScrolling)} className={`p-6 rounded-full text-white shadow-xl transition-all ${isScrolling ? 'bg-red-500' : 'bg-indigo-600'}`}><Icon name={isScrolling ? "pause" : "play"} size={32} /></button>
+              {/* CONTROLES FLOTANTES (SCROLL) */}
+              {(currentView === 'view' || (currentView === 'playlistView' && playlistMode === 'full')) && (
+                <div className="fixed bottom-8 right-8 flex items-center gap-3 p-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-full shadow-2xl border-2 dark:border-slate-700 print:hidden z-[100]">
+                  {isScrolling && (
+                    <div className="flex items-center gap-2 pr-2 border-r dark:border-slate-700 mr-1 animate-in slide-in-from-right-4">
+                      <button className="p-3 bg-slate-100 dark:bg-slate-700 dark:text-white rounded-full active:scale-90" onClick={() => setScrollSpeed(s => Math.max(1, s-1))}><Icon name="rewind" size={18}/></button>
+                      <span className="font-black text-indigo-600 dark:text-indigo-400 px-1 text-sm">{scrollSpeed}x</span>
+                      <button className="p-3 bg-slate-100 dark:bg-slate-700 dark:text-white rounded-full active:scale-90" onClick={() => setScrollSpeed(s => Math.min(10, s+1))}><Icon name="fast-forward" size={18}/></button>
+                    </div>
+                  )}
+                  <button onClick={() => setIsScrolling(!isScrolling)} className={`p-6 rounded-full text-white shadow-xl transition-all active:scale-95 hover:scale-105 ${isScrolling ? 'bg-red-500' : 'bg-indigo-600'}`}><Icon name={isScrolling ? "pause" : "play"} size={32} /></button>
+                </div>
+              )}
+
+              {/* MODAL NUEVO CULTO */}
+              {showNewPlaylistModal && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 max-w-sm w-full shadow-2xl">
+                    <h3 className="text-xl font-bold mb-4 dark:text-white">Nombre del Culto</h3>
+                    <input type="text" className="w-full p-4 rounded-2xl border-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white outline-none focus:border-indigo-500 mb-6" placeholder="Ej: Domingo Mañana" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
+                    <div className="flex gap-3">
+                      <button onClick={()=>setShowNewPlaylistModal(false)} className="flex-1 py-3 font-bold opacity-50 dark:text-white">Cerrar</button>
+                      <button onClick={async ()=>{ if(newPlaylistName && user){ await fb.addDoc(fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'playlists'), { name: newPlaylistName, songs: [], updatedAt: Date.now() }); setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("Culto Creado"); } }} className="bg-indigo-600 text-white px-6 rounded-xl font-bold shadow-lg">Crear</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* MODAL AÑADIR A CULTO */}
+              {showAddSongModal && activePlaylist && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in">
+                  <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl max-h-[80vh] flex flex-col">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-xl font-bold truncate pr-4 dark:text-white">Añadir a {activePlaylist.name}</h3>
+                      <button onClick={()=>setShowAddSongModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full dark:text-white"><Icon name="x" size={20}/></button>
+                    </div>
+                    <div className="overflow-y-auto space-y-2 flex-1 pr-1 custom-scrollbar">
+                      {songs.map(s => (
+                        <button key={s.id} onClick={async () => { if (!activePlaylist.songs?.includes(s.id)) { await fb.updateDoc(fb.doc(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'playlists', activePlaylist.id), { songs: [...(activePlaylist.songs || []), s.id] }); showToast("¡Agregada!"); } }} className={`w-full p-4 rounded-xl border-2 text-left flex justify-between items-center transition-all ${activePlaylist.songs?.includes(s.id) ? 'bg-green-50 border-green-200 dark:bg-green-900/20' : 'hover:bg-indigo-50 border-transparent dark:border-slate-800 shadow-sm'}`}>
+                          <div className="overflow-hidden pr-2 text-left"><p className="font-bold truncate dark:text-white">{s.title}</p><p className="text-xs opacity-50 dark:text-slate-400 font-mono tracking-widest">{s.artist}</p></div>
+                          {activePlaylist.songs?.includes(s.id) ? <Icon name="check" className="text-green-600" /> : <Icon name="plus" className="text-indigo-600" />}
+                        </button>
+                      ))}
+                    </div>
+                    <button onClick={()=>setShowAddSongModal(false)} className="w-full mt-4 py-4 bg-indigo-600 text-white rounded-xl font-bold">Hecho</button>
+                  </div>
                 </div>
               )}
             </div>
