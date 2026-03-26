@@ -60,7 +60,13 @@
             min-height: 2.5em;
             align-items: flex-end;
         }
-        .icon-container { display: inline-flex; align-items: center; justify-content: center; line-height: 0; }
+        .icon-container { 
+            display: inline-flex; 
+            align-items: center; 
+            justify-content: center; 
+            line-height: 0;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 notranslate" translate="no">
@@ -71,7 +77,6 @@
         import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
         import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
-        // CONFIGURACIÓN DE FIREBASE (YA INTEGRADA)
         const firebaseConfig = {
             apiKey: "AIzaSyAqMDVdI0mjTf9Mdvg1SmkPUZaaxV8X2o4",
             authDomain: "mi-corario-pro.firebaseapp.com",
@@ -93,7 +98,6 @@
     <script type="text/babel">
         const { useState, useEffect, useRef, useMemo } = React;
 
-        // Componente Icono
         const Icon = ({ name, size = 24, className = "", spin = false }) => {
             const containerRef = useRef(null);
             useEffect(() => {
@@ -125,20 +129,17 @@
           const [isDarkMode, setIsDarkMode] = useState(false);
           const [playlistMode, setPlaylistMode] = useState('list');
           
-          // Estilos
           const [textSize, setTextSize] = useState(18);
           const [chordColor, setChordColor] = useState('default');
           const [lyricColor, setLyricColor] = useState('default');
           const [showStylePanel, setShowStylePanel] = useState(false);
           const [transposeSteps, setTransposeSteps] = useState(0);
 
-          // Herramientas
           const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
           const [bpm, setBpm] = useState(120);
           const [isScrolling, setIsScrolling] = useState(false);
           const [scrollSpeed, setScrollSpeed] = useState(2);
 
-          // Editor
           const [editTitle, setEditTitle] = useState('');
           const [editArtist, setEditArtist] = useState('');
           const [editKey, setEditKey] = useState('');
@@ -153,7 +154,6 @@
           const audioCtxRef = useRef(null);
           const metronomeIntervalRef = useRef(null);
 
-          // Auth
           useEffect(() => {
             const init = async () => {
                 try {
@@ -168,7 +168,6 @@
             return () => unsub();
           }, []);
 
-          // Data
           useEffect(() => {
             if (!user) return;
             const songsCol = fb.collection(fb.db, 'artifacts', fb.appId, 'users', user.uid, 'songs');
@@ -184,7 +183,6 @@
             return () => { unsubS(); unsubP(); };
           }, [user]);
 
-          // Metrónomo
           useEffect(() => {
             if (isMetronomePlaying) {
               metronomeIntervalRef.current = setInterval(() => {
@@ -201,7 +199,6 @@
             return () => { if(metronomeIntervalRef.current) clearInterval(metronomeIntervalRef.current); };
           }, [isMetronomePlaying, bpm]);
 
-          // Scroll
           useEffect(() => {
             if (isScrolling) {
               const interval = setInterval(() => window.scrollBy(0, scrollSpeed), 50);
@@ -261,31 +258,44 @@
           const handleIA = async () => {
             if (!editLyrics) return showToast("Pega la letra primero", "error");
             setIsAiLoading(true);
-            const apiKey = "AIzaSyB8eQAgc68ME2eS0pq5WW1fEVwZ3shKaUQ"; 
+
+            const apiKey = ""; // El entorno inyecta la clave automáticamente
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            
+            const systemPrompt = "Actúa como músico experto. Re-armoniza la canción con acordes avanzados de piano. Devuelve SOLAMENTE la letra con los acordes entre corchetes [Acorde] integrados en el texto. Usa Cifrado Americano. Sin comentarios.";
+
+            const fetchWithRetry = async (retries = 5, delay = 1000) => {
+              try {
+                const res = await fetch(url, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    contents: [{ parts: [{ text: editLyrics }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                  })
+                });
+                if (!res.ok) throw new Error('Error de conexión');
+                return await res.json();
+              } catch (error) {
+                if (retries > 0) {
+                  await new Promise(resolve => setTimeout(resolve, delay));
+                  return fetchWithRetry(retries - 1, delay * 2);
+                }
+                throw error;
+              }
+            };
+
             try {
-              const res = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  contents: [{ parts: [{ text: editLyrics }] }],
-                  systemInstruction: { parts: [{ text: "Actúa como músico experto. Re-armoniza la canción con acordes avanzados de piano. Devuelve SOLAMENTE la letra con los acordes entre corchetes [Acorde]. Usa Cifrado Americano. Sin comentarios." }] }
-                })
-              });
-              const data = await res.json();
+              const data = await fetchWithRetry();
               const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
               if (result) {
                 setEditLyrics(result.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim());
                 showToast("¡IA: Rearmonización lista!");
-              } else {
-                throw new Error("Respuesta IA vacía");
               }
             } catch (e) { 
-              console.error(e);
               showToast("Error de conexión con la IA", "error"); 
+            } finally {
+              setIsAiLoading(false);
             }
-            setIsAiLoading(false);
           };
 
           const formatInternetChords = () => {
@@ -351,18 +361,23 @@
           const activeSong = songs.find(s => s.id === activeSongId);
           const activePlaylist = playlists.find(p => p.id === activePlaylistId);
 
-          if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black animate-pulse">CORARIO AI...</div>;
+          if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black animate-pulse uppercase italic">Corario AI...</div>;
 
           return (
             <div className={`min-h-screen transition-all notranslate ${isDarkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`} translate="no">
               
               {toast && <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce ${toast.type === 'error' ? 'bg-red-600' : 'bg-indigo-600'} text-white`}>{toast.message}</div>}
 
-              <header className="sticky top-0 z-50 bg-indigo-700 dark:bg-indigo-900 text-white p-4 flex justify-between items-center shadow-lg print:hidden">
-                <div className="flex items-center gap-2 cursor-pointer" onClick={() => { setCurrentView('list'); setPlaylistMode('list'); }}><Icon name="music" size={24} /><h1 className="text-xl font-black italic uppercase tracking-tighter">Corario AI</h1></div>
-                <div className="flex items-center gap-4">
-                  <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><Icon name={isDarkMode ? "sun" : "moon"} /></button>
-                  {currentView === 'list' && <button className="bg-white text-indigo-700 px-4 py-1.5 rounded-full font-bold text-sm shadow-md hover:scale-105" onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }}>+ Nueva</button>}
+              <header className="sticky top-0 z-50 bg-indigo-700 dark:bg-indigo-900 text-white p-4 shadow-lg print:hidden">
+                <div className="max-w-4xl mx-auto flex justify-between items-center">
+                  <div className="flex flex-row items-center gap-2 cursor-pointer" onClick={() => { setCurrentView('list'); setPlaylistMode('list'); }}>
+                    <Icon name="music" size={28} />
+                    <h1 className="text-xl font-black italic uppercase tracking-tighter leading-none">Corario AI</h1>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => setIsDarkMode(!isDarkMode)} className="p-2 hover:bg-white/10 rounded-full transition-colors"><Icon name={isDarkMode ? "sun" : "moon"} /></button>
+                    {currentView === 'list' && <button className="bg-white text-indigo-700 px-4 py-1.5 rounded-full font-bold text-sm shadow-md hover:scale-105" onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }}>+ Nueva</button>}
+                  </div>
                 </div>
               </header>
 
