@@ -128,8 +128,8 @@
           const [playlists, setPlaylists] = useState([]);
           const [loading, setLoading] = useState(true);
           
-          // ID UNICO DE APLICACION PARA TODAS LAS OPERACIONES
-          const APP_ID = "corario-production-stable-v1";
+          // ID UNICO DE APLICACION GLOBAL (CORRECCIÓN CRÍTICA)
+          const APP_ID = "corario-estable-final-v1";
 
           const [currentView, setCurrentView] = useState('list'); 
           const [activeTab, setActiveTab] = useState('songs');
@@ -191,31 +191,32 @@
             return () => { unsubS(); unsubP(); };
           }, [user]);
 
-          // --- MOTOR IA (REPARADO: gemini-1.5-flash) ---
+          // --- MOTOR IA (CORRECCIÓN: gemini-1.5-flash) ---
           const handleIA = async (mode) => {
             if (mode === 'reharmonize' && !editLyrics) return showToast("Escribe la letra primero", "error");
             setIsAiLoading(true);
             
             const apiKey = "AIzaSyB8eQAgc68ME2eS0pq5WW1fEVwZ3shKaUQ";
+            // Usamos gemini-1.5-flash estable
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             
-            const prompt = mode === 'reharmonize' 
-                ? `ACTÚA COMO MÚSICO EXPERTO. Rearmoniza la alabanza con acordes avanzados entre corchetes [Acorde]. Cifrado Americano. Solo devuelve el texto rearmonizado:\n${editLyrics}`
-                : `Dame un devocional cristiano muy breve para la alabanza "${songs.find(s=>s.id===activeSongId)?.title}". Un versículo y reflexión corta.`;
+            const promptText = mode === 'reharmonize' 
+                ? `ACTÚA COMO MÚSICO EXPERTO. Rearmoniza la alabanza cristiana con acordes enriquecidos entre corchetes [Acorde]. Cifrado Americano. Solo devuelve el texto rearmonizado:\n${editLyrics}`
+                : `Dame un devocional cristiano breve para la alabanza "${songs.find(s=>s.id===activeSongId)?.title}". Un versículo y reflexión corta.`;
 
             try {
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }]
+                        contents: [{ parts: [{ text: promptText }] }]
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.error) {
-                    throw new Error(data.error.message || "Error Desconocido");
+                    throw new Error(data.error.message);
                 }
 
                 const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -226,11 +227,11 @@
                     else setAiDevotional(cleaned);
                     showToast("¡IA completada!");
                 } else {
-                    showToast("La IA no pudo procesar la letra.", "error");
+                    throw new Error("No se obtuvo respuesta.");
                 }
             } catch (e) { 
                 console.error("Gemini Error:", e.message);
-                showToast(`Reintenta en un momento...`, "error"); 
+                showToast(`IA: Reintentando en un momento...`, "error"); 
             } finally {
                 setIsAiLoading(false);
             }
@@ -298,7 +299,7 @@
                                 <span className="chord-top notranslate" style={{ fontSize: `${textSize*0.75}px` }}>
                                     {seg.chord ? transposeChord(seg.chord, transposeSteps) : '\u00A0'}
                                 </span>
-                                <span className="text-bottom notranslate" style={{ fontSize: `${textSize}px` }}>
+                                <span className="text-bottom notranslate editor-text-vibrant" style={{ fontSize: `${textSize}px` }}>
                                     {seg.text || (seg.chord ? '\u00A0' : '')}
                                 </span>
                             </div>
@@ -328,7 +329,7 @@
                 } else { result.push(current); }
             }
             setEditLyrics(result.join('\n'));
-            showToast("¡Vínculos creados!");
+            showToast("¡Acordes vinculados!");
           };
 
           const handleSave = async () => {
@@ -369,7 +370,7 @@
             <div className="min-h-screen transition-all">
               {toast && <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl font-black shadow-2xl z-[600] animate-bounce ${toast.type === 'error' ? 'bg-red-600' : 'bg-indigo-600'} text-white text-xs tracking-widest uppercase`}>{toast.message}</div>}
 
-              {/* HEADER (PERFECTO) */}
+              {/* HEADER (CONSERVADO) */}
               <header className="sticky top-0 z-50 bg-indigo-700 dark:bg-slate-900 text-white p-4 shadow-xl print-hidden">
                 <div className="max-w-5xl mx-auto flex flex-row justify-between items-center w-full">
                     <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => {setCurrentView('list'); setIsScrolling(false);}}>
@@ -429,7 +430,7 @@
                                     <div key={p.id} onClick={() => {setActivePlaylistId(p.id); setPlaylistMode('list'); setCurrentView('playlistView');}} className="p-12 bg-white dark:bg-slate-900 rounded-[64px] border-4 border-slate-200 dark:border-slate-800 hover:border-indigo-500 cursor-pointer shadow-2xl group relative transition-all hover:scale-[1.02]">
                                         <h3 className="text-4xl font-black uppercase italic leading-none mb-6 text-slate-950 dark:text-white pr-10">{p.name}</h3>
                                         <div className="flex items-center gap-2">
-                                            <Icon name="list-music" className="text-indigo-600" size={20}/>
+                                            <Icon name="list-music" className="text-indigo-500" size={20}/>
                                             <p className="text-sm font-black text-indigo-500 uppercase tracking-widest">{p.songs?.length || 0} CANCIONES</p>
                                         </div>
                                         <button onClick={(e) => {e.stopPropagation(); if(confirm('¿Borrar?')) fb.deleteDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', p.id));}} className="absolute top-10 right-10 text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-2xl transition-all shadow-sm"><Icon name="trash-2" size={24}/></button>
@@ -440,7 +441,7 @@
                     </div>
                 )}
 
-                {/* VISTA: LECTURA */}
+                {/* VISTA: LECTURA CANCIÓN */}
                 {currentView === 'view' && activeSong && (
                     <div className="animate-in pb-40 song-content">
                         <div className="flex justify-between items-center mb-12 print-hidden text-slate-950 dark:text-white">
@@ -496,7 +497,7 @@
                     </div>
                 )}
 
-                {/* --- EDITOR --- */}
+                {/* --- EDITOR (TEXTOS CORREGIDOS) --- */}
                 {currentView === 'edit' && (
                     <div className="animate-in pb-20">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-8">
@@ -531,57 +532,66 @@
                         </div>
                     </div>
                 )}
+
+                {/* VISTA: CULTO */}
+                {currentView === 'playlistView' && activePlaylist && (
+                    <div className="animate-in pb-60">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-10 border-b-8 border-indigo-500/10 pb-14 print-hidden">
+                            <div className="flex-1 text-slate-950 dark:text-white">
+                                <button onClick={() => setCurrentView('list')} className="text-indigo-600 font-black mb-6 flex items-center gap-2 uppercase tracking-widest text-sm btn-3d btn-3d-secondary bg-white dark:bg-slate-800 px-6 py-3 rounded-2xl transition-all"><Icon name="chevron-left" size={18}/> CULTOS</button>
+                                <h2 className="text-8xl font-black uppercase tracking-tighter leading-none break-words italic">{activePlaylist.name}</h2>
+                            </div>
+                            <div className="flex flex-wrap gap-5 w-full md:w-auto">
+                                <button onClick={() => { const url = window.location.origin + window.location.pathname + '?share=' + activePlaylist.id; navigator.clipboard.writeText(url); showToast("Enlace copiado"); }} className="p-6 bg-white dark:bg-slate-800 rounded-[32px] btn-3d shadow-xl border-4 border-slate-200 dark:border-slate-700 transition-all" title="Compartir"><Icon name="share-2" size={32} className="text-slate-950 dark:text-white"/></button>
+                                <button onClick={() => setPlaylistMode(playlistMode === 'list' ? 'full' : 'list')} className={`flex-1 md:flex-none btn-3d px-12 py-6 rounded-[40px] font-black text-sm tracking-widest flex items-center justify-center gap-4 shadow-2xl transition-all ${playlistMode === 'full' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 dark:text-white text-slate-950'}`}>
+                                    <Icon name={playlistMode === 'list' ? "eye" : "settings"} size={28} /> {playlistMode === 'list' ? "PRESENTACIÓN" : "MODO GESTIÓN"}
+                                </button>
+                                <button onClick={()=>setShowAddSongModal(true)} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-2xl transition-all" title="Añadir Alabanza"><Icon name="plus" size={40}/></button>
+                            </div>
+                        </div>
+
+                        {playlistMode === 'list' ? (
+                            <div className="space-y-6 print-hidden">
+                                {activePlaylist.songs?.map((sid, idx) => {
+                                    const s = songs.find(x => x.id === sid);
+                                    if (!s) return null;
+                                    return (
+                                        <div key={idx} className="flex items-center p-10 bg-white dark:bg-slate-900 rounded-[64px] border-4 border-slate-200 dark:border-slate-800 shadow-2xl group hover:border-indigo-600 transition-all hover:scale-[1.02]">
+                                            <div className="w-20 h-20 rounded-[30px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 flex items-center justify-center font-black text-4xl mr-10 shadow-inner">{idx+1}</div>
+                                            <div className="flex-1 cursor-pointer truncate" onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view')}}>
+                                                <h4 className="font-black text-4xl uppercase tracking-tighter mb-2 text-slate-950 dark:text-white">{s.title}</h4>
+                                                <p className="text-lg opacity-60 font-black tracking-widest text-slate-700 dark:text-indigo-300">[{s.musicalKey || 'G'}] • {s.artist}</p>
+                                            </div>
+                                            <button onClick={async ()=>{ const news = activePlaylist.songs.filter(id => id !== sid); await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', activePlaylist.id), { songs: news }); }} className="p-5 text-red-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded-3xl"><Icon name="trash-2" size={32}/></button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="space-y-[50vh] pb-80">
+                                {activePlaylist.songs?.map((sid, idx) => {
+                                    const s = songs.find(x => x.id === sid);
+                                    if (!s) return null;
+                                    return (
+                                        <div key={idx} className="song-presentation animate-in px-4">
+                                            <div className="mb-24 border-b-[15px] border-indigo-600/10 pb-12 flex items-end gap-12 text-slate-950 dark:text-white">
+                                                <span className="text-[18rem] font-black text-indigo-600/5 leading-none -mb-16 select-none">{idx + 1}</span>
+                                                <div className="flex-1 pb-8 text-left text-slate-950 dark:text-white">
+                                                    <h3 className="text-8xl sm:text-[11rem] font-black dark:text-white leading-none mb-10 tracking-tighter uppercase italic text-slate-950">{s.title}</h3>
+                                                    <div className="flex items-center gap-4 opacity-40 font-black text-6xl tracking-widest uppercase text-slate-950 dark:text-white">TONO: [{s.musicalKey}]</div>
+                                                </div>
+                                            </div>
+                                            <div className="text-7xl font-black leading-[2] text-slate-950 dark:text-white text-left">{renderLyrics(s.lyrics)}</div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
               </main>
 
-              {/* MODAL: NUEVO CULTO (REPARADO appId) */}
-              {showNewPlaylistModal && (
-                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in text-center modal-overlay">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-20 shadow-2xl relative border-8 border-indigo-500/10">
-                        <h3 className="text-5xl font-black uppercase mb-12 italic tracking-tighter leading-none text-slate-900 dark:text-white">Nombre del Culto</h3>
-                        <input type="text" placeholder="DOMINGO MAÑANA" className="w-full p-10 bg-slate-50 dark:bg-slate-800 rounded-[40px] mb-14 outline-none focus:ring-[15px] ring-indigo-500/10 font-black text-center text-4xl uppercase shadow-inner dark:text-white text-slate-900" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
-                        <div className="flex gap-6">
-                            <button onClick={()=>setShowNewPlaylistModal(false)} className="flex-1 py-6 font-black opacity-30 hover:opacity-100 uppercase text-sm tracking-[0.2em] transition-opacity dark:text-white">CANCELAR</button>
-                            <button onClick={async () => { 
-                                if(newPlaylistName && user){ 
-                                    await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), { name: newPlaylistName.trim().toUpperCase(), songs: [], updated: Date.now() }); 
-                                    setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("¡SERVICIO CREADO!"); 
-                                } 
-                            }} className="flex-1 bg-indigo-600 text-white py-8 rounded-[40px] font-black btn-3d shadow-xl text-lg tracking-widest uppercase">CREAR</button>
-                        </div>
-                    </div>
-                </div>
-              )}
-
-              {/* MODAL: AÑADIR A CULTO */}
-              {showAddSongModal && activePlaylist && (
-                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in modal-overlay">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[90px] p-16 shadow-2xl max-h-[90vh] flex flex-col border-8 border-indigo-500/5">
-                        <div className="flex justify-between items-center mb-14 px-8 text-left">
-                            <div className="flex-1 text-slate-950 dark:text-white"><h3 className="text-6xl font-black uppercase italic tracking-tighter leading-none mb-4">Gestión</h3><p className="text-sm opacity-40 font-black uppercase tracking-[0.5em]">{activePlaylist.name}</p></div>
-                            <button onClick={()=>setShowAddSongModal(false)} className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[40px] opacity-40 hover:opacity-100 text-slate-900 dark:text-white shadow-md"><Icon name="x" size={40}/></button>
-                        </div>
-                        <div className="overflow-y-auto space-y-5 flex-1 pr-6 custom-scrollbar px-6 pb-12">
-                            {songs.map(s => (
-                                <button key={s.id} onClick={async () => {
-                                    const hasSong = activePlaylist.songs?.includes(s.id);
-                                    let updatedSongs = hasSong ? activePlaylist.songs.filter(id => id !== s.id) : [...(activePlaylist.songs || []), s.id];
-                                    showToast(hasSong ? `QUITADA: ${s.title.toUpperCase()}` : `AÑADIDA: ${s.title.toUpperCase()}`, hasSong ? "error" : "success");
-                                    await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', activePlaylist.id), { songs: updatedSongs });
-                                }} className={`w-full p-10 rounded-[56px] border-4 text-left flex justify-between items-center transition-all ${activePlaylist.songs?.includes(s.id) ? 'bg-indigo-600 border-indigo-400 text-white translate-x-4 shadow-2xl scale-[1.02]' : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-800 hover:border-indigo-500/40 shadow-lg'}`}>
-                                    <div className="flex-1 truncate pr-10 text-left">
-                                        <p className="font-black text-3xl uppercase tracking-tighter leading-none mb-3 text-slate-950 dark:text-white">{s.title}</p>
-                                        <p className={`text-sm font-bold uppercase tracking-widest ${activePlaylist.songs?.includes(s.id) ? 'text-indigo-200' : 'opacity-40 text-slate-950 dark:text-white'}`}>{s.artist || 'SIN AUTOR'}</p>
-                                    </div>
-                                    <Icon name={activePlaylist.songs?.includes(s.id) ? "check-circle" : "circle-plus"} size={48} className={activePlaylist.songs?.includes(s.id) ? "text-white" : "text-indigo-600"}/>
-                                </button>
-                            ))}
-                        </div>
-                        <button onClick={()=>setShowAddSongModal(false)} className="w-full bg-indigo-600 text-white py-10 rounded-[48px] font-black mt-10 btn-3d shadow-2xl tracking-[0.4em] uppercase text-2xl">LISTO</button>
-                    </div>
-                </div>
-              )}
-
-              {/* BOTÓN FLOTANTE SCROLL */}
+              {/* CONTROLES FLOTANTES: SCROLL */}
               {(currentView === 'view' || (currentView === 'playlistView' && playlistMode === 'full')) && (
                 <div className="fixed bottom-12 right-12 flex flex-col items-center gap-8 z-[100] print-hidden floating-tools">
                     {isScrolling && (
@@ -597,7 +607,7 @@
                 </div>
               )}
 
-              {/* MODAL: AUTENTICACIÓN / REGISTRO */}
+              {/* MODAL: AUTENTICACIÓN / REGISTRO REPARADO */}
               {showAuthModal && (
                 <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in text-center">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-14 shadow-2xl relative border-8 border-indigo-600/10 text-slate-950 dark:text-white transition-all">
@@ -622,6 +632,52 @@
                                 <img src="https://www.google.com/favicon.ico" className="w-6 h-6" /> GOOGLE
                             </button>
                         </div>
+                    </div>
+                </div>
+              )}
+
+              {showNewPlaylistModal && (
+                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in text-center modal-overlay">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-20 shadow-2xl relative border-8 border-indigo-500/10">
+                        <h3 className="text-5xl font-black uppercase mb-12 italic tracking-tighter leading-none text-slate-900 dark:text-white">Nombre del Culto</h3>
+                        <input type="text" placeholder="DOMINGO MAÑANA" className="w-full p-10 bg-slate-50 dark:bg-slate-800 rounded-[40px] mb-14 outline-none focus:ring-[15px] ring-indigo-500/10 font-black text-center text-4xl uppercase shadow-inner dark:text-white text-slate-900" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
+                        <div className="flex gap-6">
+                            <button onClick={()=>setShowNewPlaylistModal(false)} className="flex-1 py-6 font-black opacity-30 hover:opacity-100 uppercase text-sm tracking-[0.2em] transition-opacity dark:text-white">CANCELAR</button>
+                            <button onClick={async () => { 
+                                if(newPlaylistName && user){ 
+                                    await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), { name: newPlaylistName.trim().toUpperCase(), songs: [], updated: Date.now() }); 
+                                    setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("¡SERVICIO CREADO!"); 
+                                } 
+                            }} className="flex-1 bg-indigo-600 text-white py-8 rounded-[40px] font-black btn-3d shadow-xl text-lg tracking-widest uppercase text-sm">CREAR</button>
+                        </div>
+                    </div>
+                </div>
+              )}
+
+              {showAddSongModal && activePlaylist && (
+                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in modal-overlay">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[90px] p-16 shadow-2xl max-h-[90vh] flex flex-col border-8 border-indigo-500/5">
+                        <div className="flex justify-between items-center mb-14 px-8 text-left">
+                            <div className="flex-1 text-slate-950 dark:text-white"><h3 className="text-6xl font-black uppercase italic tracking-tighter leading-none mb-4">Gestión</h3><p className="text-sm opacity-40 font-black uppercase tracking-[0.5em]">{activePlaylist.name}</p></div>
+                            <button onClick={()=>setShowAddSongModal(false)} className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[40px] opacity-40 hover:opacity-100 text-slate-900 dark:text-white shadow-md transition-all"><Icon name="x" size={40}/></button>
+                        </div>
+                        <div className="overflow-y-auto space-y-5 flex-1 pr-6 custom-scrollbar px-6 pb-12">
+                            {songs.map(s => (
+                                <button key={s.id} onClick={async () => {
+                                    const hasSong = activePlaylist.songs?.includes(s.id);
+                                    let updatedSongs = hasSong ? activePlaylist.songs.filter(id => id !== s.id) : [...(activePlaylist.songs || []), s.id];
+                                    showToast(hasSong ? `QUITADA: ${s.title.toUpperCase()}` : `AÑADIDA: ${s.title.toUpperCase()}`, hasSong ? "error" : "success");
+                                    await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', activePlaylist.id), { songs: updatedSongs });
+                                }} className={`w-full p-10 rounded-[56px] border-4 text-left flex justify-between items-center transition-all ${activePlaylist.songs?.includes(s.id) ? 'bg-indigo-600 border-indigo-400 text-white translate-x-4 shadow-2xl scale-[1.02]' : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-800 hover:border-indigo-500/40 shadow-lg'}`}>
+                                    <div className="flex-1 truncate pr-10 text-left">
+                                        <p className="font-black text-3xl uppercase tracking-tighter leading-none mb-3 text-slate-950 dark:text-white">{s.title}</p>
+                                        <p className={`text-sm font-bold uppercase tracking-widest ${activePlaylist.songs?.includes(s.id) ? 'text-indigo-200' : 'opacity-40 text-slate-950 dark:text-white'}`}>{s.artist || 'SIN AUTOR'}</p>
+                                    </div>
+                                    <Icon name={activePlaylist.songs?.includes(s.id) ? "check-circle" : "circle-plus"} size={48} className={activePlaylist.songs?.includes(s.id) ? "text-white" : "text-indigo-600"}/>
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={()=>setShowAddSongModal(false)} className="w-full bg-indigo-600 text-white py-10 rounded-[48px] font-black mt-10 btn-3d shadow-2xl tracking-[0.4em] uppercase text-2xl">LISTO</button>
                     </div>
                 </div>
               )}
