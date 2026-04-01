@@ -16,15 +16,14 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono&display=swap');
         
-        :root { --indigo-primary: #4338ca; }
+        :root { --indigo-primary: #4338ca; --text-day: #020617; }
         
         body { 
             font-family: 'Inter', sans-serif; 
             transition: background-color 0.3s ease, color 0.3s ease; 
             margin: 0; 
             min-height: 100vh;
-            background-color: #f8fafc;
-            color: #000000;
+            color: var(--text-day);
         }
 
         .notranslate { translate: no !important; }
@@ -33,16 +32,16 @@
         .btn-3d {
             position: relative;
             transition: all 0.1s ease;
-            box-shadow: 0 5px 0 #000000; 
-            border: 2px solid #000000;
+            box-shadow: 0 5px 0 #1e1b4b; 
+            border: 2px solid #1e1b4b;
             font-weight: 800;
         }
         .btn-3d:active {
             transform: translateY(3px);
-            box-shadow: 0 1px 0 #000000;
+            box-shadow: 0 1px 0 #1e1b4b;
         }
         
-        .btn-3d-secondary { box-shadow: 0 5px 0 #1e293b; border-color: #1e293b; }
+        .btn-3d-secondary { box-shadow: 0 5px 0 #334155; border-color: #334155; }
         .btn-3d-amber { box-shadow: 0 5px 0 #78350f; border-color: #78350f; }
 
         /* --- RENDERIZADO DE ACORDES --- */
@@ -57,8 +56,7 @@
             main { max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
             body { background: white !important; color: black !important; }
             .song-content { page-break-after: always; padding-top: 1cm; }
-            .chord-top { color: #000 !important; border-bottom: 1px solid #000; }
-            h2, p { color: #000 !important; }
+            .chord-top { color: #000 !important; }
         }
 
         .animate-in { animation: fadeIn 0.4s ease-out; }
@@ -67,12 +65,14 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #4338ca; border-radius: 10px; }
 
-        /* --- CLASES DE ALTO CONTRASTE --- */
-        .high-contrast-text { color: #000000 !important; opacity: 1 !important; font-weight: 900 !important; }
-        .dark .high-contrast-text { color: #ffffff !important; }
-        
+        /* Forzar modo oscuro */
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
-        .dark .bg-card { background-color: #0f172a !important; border-color: #1e293b !important; }
+        .dark .btn-3d { box-shadow: 0 5px 0 #000; border-color: #1e293b; }
+        .dark .text-title { color: #ffffff !important; }
+        
+        /* Visibilidad Crítica del Editor */
+        .editor-text-vibrant { color: #020617 !important; font-weight: 900 !important; opacity: 1 !important; }
+        .dark .editor-text-vibrant { color: #ffffff !important; opacity: 1 !important; }
 
         .metronome-visual {
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%234338ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 21 3-10h-6l3 10Z"/><path d="m12 11 1-5h-2l1 5Z"/><circle cx="12" cy="11" r="1"/></svg>');
@@ -128,6 +128,9 @@
           const [playlists, setPlaylists] = useState([]);
           const [loading, setLoading] = useState(true);
           
+          // ID UNICO DE APLICACION PARA TODAS LAS OPERACIONES
+          const APP_ID = "corario-production-stable-v1";
+
           const [currentView, setCurrentView] = useState('list'); 
           const [activeTab, setActiveTab] = useState('songs');
           const [isDarkMode, setIsDarkMode] = useState(false);
@@ -135,7 +138,7 @@
           const [activeSongId, setActiveSongId] = useState(null);
           const [activePlaylistId, setActivePlaylistId] = useState(null);
           const [transposeSteps, setTransposeSteps] = useState(0);
-          const [textSize, setTextSize] = useState(24);
+          const [textSize, setTextSize] = useState(22);
           const [isScrolling, setIsScrolling] = useState(false);
           const [scrollSpeed, setScrollSpeed] = useState(2);
           const [bpm, setBpm] = useState(120);
@@ -179,41 +182,41 @@
 
           useEffect(() => {
             if (!user) return;
-            const appId = "corario-pro-final-v42";
-            const unsubS = fb.onSnapshot(fb.collection(fb.db, 'artifacts', appId, 'users', user.uid, 'songs'), (snap) => {
+            const unsubS = fb.onSnapshot(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs'), (snap) => {
               setSongs(snap.docs.map(d => ({id: d.id, ...d.data()})));
             });
-            const unsubP = fb.onSnapshot(fb.collection(fb.db, 'artifacts', appId, 'users', user.uid, 'playlists'), (snap) => {
+            const unsubP = fb.onSnapshot(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), (snap) => {
               setPlaylists(snap.docs.map(d => ({id: d.id, ...d.data()})));
             });
             return () => { unsubS(); unsubP(); };
           }, [user]);
 
-          // --- MOTOR IA (MEJORADO Y REPARADO DEFINITIVAMENTE) ---
+          // --- MOTOR IA (REPARADO: gemini-1.5-flash) ---
           const handleIA = async (mode) => {
             if (mode === 'reharmonize' && !editLyrics) return showToast("Escribe la letra primero", "error");
             setIsAiLoading(true);
             
             const apiKey = "AIzaSyB8eQAgc68ME2eS0pq5WW1fEVwZ3shKaUQ";
-            // Cambiado a modelo gemini-1.5-flash para máxima compatibilidad
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
             
-            const promptText = mode === 'reharmonize' 
-                ? `ACTÚA COMO MÚSICO EXPERTO. Rearmoniza la alabanza con acordes avanzados entre corchetes [Acorde] antes de cada sílaba. Usa Cifrado Americano. SOLO el texto rearmonizado:\n${editLyrics}`
-                : `Dame un devocional cristiano breve para la alabanza "${songs.find(s=>s.id===activeSongId)?.title}". Incluye un versículo y una reflexión espiritual para músicos.`;
+            const prompt = mode === 'reharmonize' 
+                ? `ACTÚA COMO MÚSICO EXPERTO. Rearmoniza la alabanza con acordes avanzados entre corchetes [Acorde]. Cifrado Americano. Solo devuelve el texto rearmonizado:\n${editLyrics}`
+                : `Dame un devocional cristiano muy breve para la alabanza "${songs.find(s=>s.id===activeSongId)?.title}". Un versículo y reflexión corta.`;
 
             try {
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ parts: [{ text: promptText }] }]
+                        contents: [{ parts: [{ text: prompt }] }]
                     })
                 });
                 
                 const data = await response.json();
                 
-                if (data.error) throw new Error(data.error.message);
+                if (data.error) {
+                    throw new Error(data.error.message || "Error Desconocido");
+                }
 
                 const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
                 
@@ -223,17 +226,16 @@
                     else setAiDevotional(cleaned);
                     showToast("¡IA completada!");
                 } else {
-                    throw new Error("No se obtuvo respuesta de la IA.");
+                    showToast("La IA no pudo procesar la letra.", "error");
                 }
             } catch (e) { 
                 console.error("Gemini Error:", e.message);
-                showToast(`Error de IA: ${e.message.substring(0, 40)}...`, "error"); 
+                showToast(`Reintenta en un momento...`, "error"); 
             } finally {
                 setIsAiLoading(false);
             }
           };
 
-          // --- MOTOR AUTO-SCROLL ---
           useEffect(() => {
             let interval;
             if (isScrolling) {
@@ -244,7 +246,6 @@
             return () => clearInterval(interval);
           }, [isScrolling, scrollSpeed]);
 
-          // --- METRÓNOMO ---
           useEffect(() => {
             let interval;
             if (isMetronomePlaying) {
@@ -253,8 +254,8 @@
                     const osc = audioCtx.current.createOscillator();
                     const gain = audioCtx.current.createGain();
                     osc.connect(gain); gain.connect(audioCtx.current.destination);
-                    osc.frequency.value = 1100;
-                    gain.gain.setValueAtTime(0.2, audioCtx.current.currentTime);
+                    osc.frequency.value = 1200;
+                    gain.gain.setValueAtTime(0.15, audioCtx.current.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.current.currentTime + 0.05);
                     osc.start(); osc.stop(audioCtx.current.currentTime + 0.05);
                 }, 60000 / bpm);
@@ -294,10 +295,10 @@
                     <div key={i} className="chord-line notranslate" translate="no">
                         {segments.map((seg, j) => (
                             <div key={j} className="chord-seg notranslate">
-                                <span className="chord-top notranslate" style={{ fontSize: `${textSize*0.7}px` }}>
+                                <span className="chord-top notranslate" style={{ fontSize: `${textSize*0.75}px` }}>
                                     {seg.chord ? transposeChord(seg.chord, transposeSteps) : '\u00A0'}
                                 </span>
-                                <span className="text-bottom notranslate" style={{ fontSize: `${textSize}px`, color: isDarkMode ? '#f1f5f9' : '#000000' }}>
+                                <span className="text-bottom notranslate" style={{ fontSize: `${textSize}px` }}>
                                     {seg.text || (seg.chord ? '\u00A0' : '')}
                                 </span>
                             </div>
@@ -334,16 +335,15 @@
             if (!editTitle.trim()) return showToast("Falta el título", "error");
             try {
                 const data = { title: editTitle, artist: editArtist, lyrics: editLyrics, musicalKey: editKey, updated: Date.now() };
-                const appId = "corario-pro-final-v42";
-                if (activeSongId) await fb.updateDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'songs', activeSongId), data);
-                else await fb.addDoc(fb.collection(fb.db, 'artifacts', appId, 'users', user.uid, 'songs'), data);
+                if (activeSongId) await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs', activeSongId), data);
+                else await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs'), data);
                 setCurrentView('list'); setEditTitle(''); setEditLyrics('');
                 showToast("¡Alabanza guardada!");
             } catch (e) { showToast("Error al guardar", "error"); }
           };
 
           const handleAuth = async () => {
-              if(!email || pass.length < 6) return showToast("Min. 6 caracteres", "error");
+              if(!email || pass.length < 6) return showToast("Clave min 6 carac.", "error");
               try {
                   if(authMode === 'register') {
                     await fb.createUserWithEmailAndPassword(fb.auth, email, pass);
@@ -354,8 +354,7 @@
                   }
                   setShowAuthModal(false);
               } catch(e) { 
-                  console.error("Auth Error:", e.code);
-                  showToast("Email inválido o cuenta ocupada", "error"); 
+                  showToast("Revisa email o contraseña", "error"); 
               }
           };
 
@@ -368,7 +367,7 @@
 
           return (
             <div className="min-h-screen transition-all">
-              {toast && <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl font-black shadow-2xl z-[600] animate-bounce bg-indigo-600 text-white text-xs tracking-widest uppercase`}>{toast.message}</div>}
+              {toast && <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-2xl font-black shadow-2xl z-[600] animate-bounce ${toast.type === 'error' ? 'bg-red-600' : 'bg-indigo-600'} text-white text-xs tracking-widest uppercase`}>{toast.message}</div>}
 
               {/* HEADER (PERFECTO) */}
               <header className="sticky top-0 z-50 bg-indigo-700 dark:bg-slate-900 text-white p-4 shadow-xl print-hidden">
@@ -382,7 +381,7 @@
                             <Icon name={isDarkMode ? "sun" : "moon"} size={22} />
                         </button>
                         {user && !user.isAnonymous ? (
-                            <button onClick={() => fb.signOut(fb.auth)} className="w-12 h-12 rounded-2xl border-2 border-white/20 overflow-hidden bg-indigo-500 shadow-md transition-all">
+                            <button onClick={() => fb.signOut(fb.auth)} className="w-12 h-12 rounded-2xl border-2 border-white/20 overflow-hidden bg-indigo-500 shadow-md">
                                 <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`} className="w-full h-full object-cover" />
                             </button>
                         ) : (
@@ -396,24 +395,24 @@
                 {currentView === 'list' && (
                     <div className="animate-in">
                         <div className="flex gap-4 mb-10 tabs-nav">
-                            <button onClick={() => setActiveTab('songs')} className={`flex-1 py-5 rounded-[28px] font-black btn-3d transition-all tracking-widest ${activeTab === 'songs' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700 text-black'}`}>ALABANZAS</button>
-                            <button onClick={() => setActiveTab('playlists')} className={`flex-1 py-5 rounded-[28px] font-black btn-3d transition-all tracking-widest ${activeTab === 'playlists' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700 text-black'}`}>CULTOS</button>
+                            <button onClick={() => setActiveTab('songs')} className={`flex-1 py-5 rounded-[28px] font-black btn-3d transition-all tracking-widest ${activeTab === 'songs' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700 text-slate-950'}`}>ALABANZAS</button>
+                            <button onClick={() => setActiveTab('playlists')} className={`flex-1 py-5 rounded-[28px] font-black btn-3d transition-all tracking-widest ${activeTab === 'playlists' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-slate-800 dark:text-white border-2 border-slate-300 dark:border-slate-700 text-slate-950'}`}>CULTOS</button>
                         </div>
 
                         {activeTab === 'songs' ? (
                             <>
                                 <div className="flex gap-4 mb-10 search-bar">
                                     <div className="relative flex-1">
-                                        <Icon name="search" className="absolute left-6 top-6 opacity-60 text-black dark:text-white" />
-                                        <input type="text" placeholder="Buscar título o artista..." className="w-full pl-16 pr-8 py-6 rounded-[32px] bg-white dark:bg-slate-900 shadow-inner outline-none border-4 border-slate-200 dark:border-slate-800 focus:border-indigo-600 font-black text-black dark:text-white text-xl" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
+                                        <Icon name="search" className="absolute left-6 top-6 opacity-60 text-slate-900 dark:text-white" />
+                                        <input type="text" placeholder="Buscar título o artista..." className="w-full pl-16 pr-8 py-6 rounded-[32px] bg-white dark:bg-slate-900 shadow-inner outline-none border-4 border-slate-200 dark:border-slate-800 focus:border-indigo-500 font-black text-slate-950 dark:text-white text-xl" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
                                     </div>
                                     <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-20 h-20 flex items-center justify-center rounded-[32px] shrink-0 shadow-2xl"><Icon name="plus" size={40} /></button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {songs.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
                                         <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setAiDevotional(null); setCurrentView('view');}} className="p-10 bg-white dark:bg-slate-900 rounded-[48px] border-4 border-slate-200 dark:border-slate-800 hover:border-indigo-500 cursor-pointer flex justify-between items-center group shadow-xl transition-all hover:scale-[1.03]">
-                                            <div className="overflow-hidden pr-4">
-                                                <h3 className="font-black text-2xl uppercase tracking-tighter truncate text-black dark:text-white group-hover:text-indigo-600 transition-colors">{s.title}</h3>
+                                            <div className="overflow-hidden">
+                                                <h3 className="font-black text-2xl uppercase tracking-tighter truncate text-slate-950 dark:text-white group-hover:text-indigo-600 transition-colors">{s.title}</h3>
                                                 <p className="text-sm font-bold mt-2 uppercase tracking-[0.2em] text-slate-600 dark:text-indigo-300 opacity-60">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
                                             </div>
                                             <Icon name="chevron-right" className="opacity-40 group-hover:opacity-100 group-hover:translate-x-2 transition-all text-indigo-500" size={32} />
@@ -423,17 +422,17 @@
                             </>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <button onClick={() => setShowNewPlaylistModal(true)} className="p-16 border-4 border-dashed border-slate-400 dark:border-slate-800 rounded-[56px] text-black dark:text-slate-400 font-black flex flex-col items-center gap-6 hover:bg-white dark:hover:bg-slate-900 transition-all hover:text-indigo-500 hover:border-indigo-500 shadow-inner">
+                                <button onClick={() => setShowNewPlaylistModal(true)} className="p-16 border-4 border-dashed border-slate-400 dark:border-slate-800 rounded-[56px] text-slate-600 dark:text-slate-400 font-black flex flex-col items-center gap-6 hover:bg-white dark:hover:bg-slate-900 transition-all hover:text-indigo-500 hover:border-indigo-500 shadow-inner">
                                     <Icon name="folder-plus" size={56} /> <span className="tracking-[0.3em] uppercase">NUEVO CULTO</span>
                                 </button>
                                 {playlists.map(p => (
                                     <div key={p.id} onClick={() => {setActivePlaylistId(p.id); setPlaylistMode('list'); setCurrentView('playlistView');}} className="p-12 bg-white dark:bg-slate-900 rounded-[64px] border-4 border-slate-200 dark:border-slate-800 hover:border-indigo-500 cursor-pointer shadow-2xl group relative transition-all hover:scale-[1.02]">
-                                        <h3 className="text-4xl font-black uppercase italic leading-none mb-6 text-black dark:text-white pr-10">{p.name}</h3>
-                                        <div className="flex items-center gap-2 text-indigo-600">
-                                            <Icon name="list-music" size={20}/>
-                                            <p className="text-sm font-black uppercase tracking-widest">{p.songs?.length || 0} CANCIONES</p>
+                                        <h3 className="text-4xl font-black uppercase italic leading-none mb-6 text-slate-950 dark:text-white pr-10">{p.name}</h3>
+                                        <div className="flex items-center gap-2">
+                                            <Icon name="list-music" className="text-indigo-600" size={20}/>
+                                            <p className="text-sm font-black text-indigo-500 uppercase tracking-widest">{p.songs?.length || 0} CANCIONES</p>
                                         </div>
-                                        <button onClick={(e) => {e.stopPropagation(); if(confirm('¿Borrar?')) fb.deleteDoc(fb.doc(fb.db, 'artifacts', 'corario-pro-final-v42', 'users', user.uid, 'playlists', p.id));}} className="absolute top-10 right-10 text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-2xl transition-all shadow-sm"><Icon name="trash-2" size={24}/></button>
+                                        <button onClick={(e) => {e.stopPropagation(); if(confirm('¿Borrar?')) fb.deleteDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', p.id));}} className="absolute top-10 right-10 text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-2xl transition-all shadow-sm"><Icon name="trash-2" size={24}/></button>
                                     </div>
                                 ))}
                             </div>
@@ -441,10 +440,10 @@
                     </div>
                 )}
 
-                {/* VISTA: LECTURA CANCIÓN */}
+                {/* VISTA: LECTURA */}
                 {currentView === 'view' && activeSong && (
                     <div className="animate-in pb-40 song-content">
-                        <div className="flex justify-between items-center mb-12 print-hidden text-black dark:text-white">
+                        <div className="flex justify-between items-center mb-12 print-hidden text-slate-950 dark:text-white">
                             <button onClick={() => setCurrentView('list')} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d btn-3d-secondary bg-white dark:bg-slate-800 px-6 py-3 rounded-2xl transition-all"><Icon name="arrow-left" size={20}/> VOLVER</button>
                             <div className="flex gap-4">
                                 <button onClick={() => handleIA('devotional')} className="p-4 bg-amber-100 text-amber-700 rounded-2xl btn-3d btn-3d-amber shadow-lg" title="Devocional IA"><Icon name="sparkles" size={28}/></button>
@@ -459,64 +458,64 @@
 
                         {aiDevotional && (
                             <div className="bg-amber-50 dark:bg-amber-900/20 p-12 rounded-[56px] mb-16 border-l-[20px] border-amber-400 relative animate-in print-hidden shadow-2xl">
-                                <button onClick={()=>setAiDevotional(null)} className="absolute top-8 right-8 p-3 bg-white dark:bg-slate-800 rounded-full shadow-md text-black dark:text-white"><Icon name="x" size={20}/></button>
-                                <h4 className="text-[10px] font-black uppercase mb-6 text-amber-800 tracking-[0.4em]">INSPIRACIÓN IA</h4>
-                                <div className="italic text-2xl leading-relaxed text-black dark:text-amber-100">{aiDevotional}</div>
+                                <button onClick={()=>setAiDevotional(null)} className="absolute top-8 right-8 p-3 bg-white dark:bg-slate-800 rounded-full shadow-md text-slate-950 dark:text-white"><Icon name="x" size={20}/></button>
+                                <h4 className="text-[10px] font-black uppercase mb-6 text-amber-800 tracking-[0.4em]">IA INSPIRACIÓN</h4>
+                                <div className="italic text-2xl leading-relaxed text-slate-900 dark:text-amber-100">{aiDevotional}</div>
                             </div>
                         )}
 
                         <div className="mb-20">
-                            <h2 className="text-7xl sm:text-9xl font-black mb-6 uppercase leading-none tracking-tighter high-contrast-text">{activeSong.title}</h2>
-                            <p className="text-4xl opacity-60 italic mb-14 uppercase tracking-widest font-black high-contrast-text">{activeSong.artist || 'MÚSICA CRISTIANA'}</p>
+                            <h2 className="text-7xl sm:text-9xl font-black mb-6 uppercase leading-none tracking-tighter editor-text-vibrant">{activeSong.title}</h2>
+                            <p className="text-4xl opacity-50 italic mb-14 uppercase tracking-widest font-bold text-slate-700 dark:text-indigo-200 editor-text-vibrant">{activeSong.artist || 'MÚSICA CRISTIANA'}</p>
                             
                             <div className="flex flex-wrap gap-6 items-center bg-white dark:bg-slate-900 p-8 rounded-[48px] shadow-2xl border-4 border-slate-200 dark:border-slate-800 print-hidden tools-container">
                                 <div className="flex items-center gap-4">
-                                    <button onClick={()=>setTransposeSteps(s=>s-1)} className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-3xl font-black btn-3d btn-3d-secondary text-2xl shadow-md text-black dark:text-white">-</button>
+                                    <button onClick={()=>setTransposeSteps(s=>s-1)} className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-3xl font-black btn-3d btn-3d-secondary text-2xl shadow-md text-slate-950 dark:text-white">-</button>
                                     <div className="px-10 font-black text-indigo-600 uppercase tracking-[0.2em] text-3xl">{transposeSteps === 0 ? (activeSong.musicalKey || 'G') : transposeSteps}</div>
-                                    <button onClick={()=>setTransposeSteps(s=>s+1)} className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-3xl font-black btn-3d btn-3d-secondary text-2xl shadow-md text-black dark:text-white">+</button>
+                                    <button onClick={()=>setTransposeSteps(s=>s+1)} className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-3xl font-black btn-3d btn-3d-secondary text-2xl shadow-md text-slate-950 dark:text-white">+</button>
                                 </div>
                                 <div className="hidden sm:block h-16 w-1 bg-slate-200 dark:bg-slate-800 mx-8 rounded-full"></div>
                                 <div className="flex items-center gap-4">
-                                    <button onClick={()=>setBpm(b=>Math.max(40, b-5))} className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl font-black btn-3d btn-3d-secondary shadow-md text-black dark:text-white">-</button>
+                                    <button onClick={()=>setBpm(b=>Math.max(40, b-5))} className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl font-black btn-3d btn-3d-secondary shadow-md text-slate-950 dark:text-white">-</button>
                                     
                                     <div className="flex flex-col items-center w-28 bg-slate-50 dark:bg-slate-950 p-2 rounded-2xl shadow-inner border-4 border-slate-200 dark:border-slate-800">
                                         <div className="metronome-visual w-6 h-6 mb-1"></div>
-                                        <span className="font-mono font-black text-3xl leading-none text-black dark:text-white">{bpm}</span>
-                                        <span className="text-[10px] font-black opacity-60 mt-1 tracking-widest uppercase text-black dark:text-white">BPM</span>
+                                        <span className="font-mono font-black text-3xl leading-none text-slate-950 dark:text-white">{bpm}</span>
+                                        <span className="text-[10px] font-black opacity-60 mt-1 tracking-widest uppercase text-slate-950 dark:text-white">BPM</span>
                                     </div>
 
-                                    <button onClick={()=>setBpm(b=>Math.min(240, b+5))} className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl font-black btn-3d btn-3d-secondary shadow-md text-black dark:text-white">+</button>
-                                    <button onClick={()=>setIsMetronomePlaying(!isMetronomePlaying)} className={`w-16 h-16 rounded-[24px] btn-3d shadow-xl ml-4 flex items-center justify-center text-white transition-all ${isMetronomePlaying?'bg-red-600 shadow-red-500/20':'bg-emerald-600 shadow-emerald-500/20'}`}>
+                                    <button onClick={()=>setBpm(b=>Math.min(240, b+5))} className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl font-black btn-3d btn-3d-secondary shadow-md text-slate-950 dark:text-white">+</button>
+                                    <button onClick={()=>setIsMetronomePlaying(!isMetronomePlaying)} className={`w-16 h-16 rounded-[24px] btn-3d shadow-xl ml-4 flex items-center justify-center text-white ${isMetronomePlaying?'bg-red-600 shadow-red-500/20':'bg-emerald-600 shadow-emerald-500/20'}`}>
                                         <Icon name={isMetronomePlaying ? "pause" : "play"} size={32}/>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="pb-60 px-4 text-5xl leading-[1.8] font-black text-black dark:text-white">{renderLyrics(activeSong.lyrics)}</div>
+                        <div className="pb-60 px-4 text-5xl leading-[1.8] font-bold text-slate-950 dark:text-white">{renderLyrics(activeSong.lyrics)}</div>
                     </div>
                 )}
 
-                {/* --- EDITOR (REPARADA VISIBILIDAD) --- */}
+                {/* --- EDITOR --- */}
                 {currentView === 'edit' && (
                     <div className="animate-in pb-20">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-8">
-                            <h2 className="text-6xl font-black uppercase italic tracking-tighter leading-none high-contrast-text">Editor</h2>
+                            <h2 className="text-6xl font-black uppercase italic tracking-tighter leading-none editor-text-vibrant">Editor</h2>
                             <div className="flex gap-4 w-full sm:w-auto">
-                                <button onClick={() => setCurrentView('list')} className="px-8 py-5 font-black uppercase text-sm tracking-widest hover:bg-slate-200 dark:hover:bg-slate-800 rounded-2xl transition-all high-contrast-text">CANCELAR</button>
-                                <button onClick={() => handleIA('reharmonize')} className="flex-1 btn-3d bg-amber-100 text-amber-700 px-10 py-5 rounded-[32px] font-black text-xs flex items-center justify-center gap-4 shadow-xl border-4 border-amber-600 transition-all" disabled={isAiLoading}>
+                                <button onClick={() => setCurrentView('list')} className="px-8 py-5 font-black uppercase text-sm tracking-widest hover:bg-slate-200 dark:hover:bg-slate-800 rounded-2xl transition-all editor-text-vibrant">CANCELAR</button>
+                                <button onClick={() => handleIA('reharmonize')} className="flex-1 btn-3d bg-amber-100 text-amber-700 px-10 py-5 rounded-[32px] font-black text-xs flex items-center justify-center gap-4 shadow-xl border-4 border-amber-600" disabled={isAiLoading}>
                                     {isAiLoading ? <Icon name="loader" className="animate-spin" /> : <Icon name="sparkles" size={24}/>} IA REARMONIZAR
                                 </button>
-                                <button onClick={handleSave} className="flex-1 btn-3d bg-indigo-600 text-white px-14 py-5 rounded-[32px] font-black text-xs flex items-center justify-center gap-4 shadow-2xl uppercase tracking-[0.2em] transition-all">
+                                <button onClick={handleSave} className="flex-1 btn-3d bg-indigo-600 text-white px-14 py-5 rounded-[32px] font-black text-xs flex items-center justify-center gap-4 shadow-2xl uppercase tracking-[0.2em]">
                                     <Icon name="save" size={24}/> GUARDAR
                                 </button>
                             </div>
                         </div>
                         <div className="space-y-10">
-                            <input type="text" placeholder="TÍTULO DE LA ALABANZA..." className="w-full p-10 rounded-[48px] bg-white dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-2xl dark:text-white transition-all text-black" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
+                            <input type="text" placeholder="TÍTULO DE LA ALABANZA..." className="w-full p-10 rounded-[48px] bg-white dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-2xl dark:text-white transition-all text-slate-950" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                                <input type="text" placeholder="COMPOSITOR / AUTOR" className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none font-black text-xl text-black dark:text-white shadow-inner" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
-                                <input type="text" placeholder="TONO (EJ: G)" className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none font-black text-xl text-black dark:text-white shadow-inner" value={editKey} onChange={e=>setEditKey(e.target.value)} />
+                                <input type="text" placeholder="COMPOSITOR / AUTOR" className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none font-black text-xl text-slate-950 dark:text-white shadow-inner" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
+                                <input type="text" placeholder="TONO (EJ: G)" className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-200 dark:border-slate-800 focus:border-indigo-500 outline-none font-black text-xl text-slate-950 dark:text-white shadow-inner" value={editKey} onChange={e=>setEditKey(e.target.value)} />
                             </div>
                             
                             <button 
@@ -527,78 +526,69 @@
                             </button>
 
                             <textarea placeholder="Pega letra con acordes encima..." 
-                                className="w-full h-[700px] p-12 rounded-[80px] bg-white dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 font-mono text-2xl font-black leading-relaxed outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar resize-none dark:text-white shadow-inner text-black" 
+                                className="w-full h-[700px] p-12 rounded-[80px] bg-white dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 font-mono text-2xl font-bold leading-relaxed outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar resize-none dark:text-white shadow-inner text-slate-950" 
                                 value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
                         </div>
                     </div>
                 )}
-
-                {/* VISTA: CULTO */}
-                {currentView === 'playlistView' && activePlaylist && (
-                    <div className="animate-in pb-60">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-10 border-b-8 border-indigo-500/10 pb-14 print-hidden">
-                            <div className="flex-1 text-black dark:text-white">
-                                <button onClick={() => setCurrentView('list')} className="text-indigo-600 font-black mb-6 flex items-center gap-2 uppercase tracking-widest text-sm btn-3d btn-3d-secondary bg-white dark:bg-slate-800 px-6 py-3 rounded-2xl transition-all"><Icon name="chevron-left" size={18}/> CULTOS</button>
-                                <h2 className="text-8xl font-black uppercase tracking-tighter leading-none break-words italic">{activePlaylist.name}</h2>
-                            </div>
-                            <div className="flex flex-wrap gap-5 w-full md:w-auto">
-                                <button onClick={() => { const url = window.location.origin + window.location.pathname + '?share=' + activePlaylist.id; navigator.clipboard.writeText(url); showToast("Enlace copiado"); }} className="p-6 bg-white dark:bg-slate-800 rounded-[32px] btn-3d shadow-xl border-4 border-slate-200 dark:border-slate-700 transition-all" title="Compartir"><Icon name="share-2" size={32} className="text-black dark:text-white"/></button>
-                                <button onClick={() => setPlaylistMode(playlistMode === 'list' ? 'full' : 'list')} className={`flex-1 md:flex-none btn-3d px-12 py-6 rounded-[40px] font-black text-sm tracking-widest flex items-center justify-center gap-4 shadow-2xl transition-all ${playlistMode === 'full' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-800 dark:text-white text-black'}`}>
-                                    <Icon name={playlistMode === 'list' ? "eye" : "settings"} size={28} /> {playlistMode === 'list' ? "PRESENTACIÓN" : "GESTIÓN"}
-                                </button>
-                                <button onClick={()=>setShowAddSongModal(true)} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-2xl transition-all" title="Añadir Alabanza"><Icon name="plus" size={40}/></button>
-                            </div>
-                        </div>
-
-                        {playlistMode === 'list' ? (
-                            <div className="space-y-6 print-hidden">
-                                {activePlaylist.songs?.map((sid, idx) => {
-                                    const s = songs.find(x => x.id === sid);
-                                    if (!s) return null;
-                                    return (
-                                        <div key={idx} className="flex items-center p-10 bg-white dark:bg-slate-900 rounded-[64px] border-4 border-slate-200 dark:border-slate-800 shadow-2xl group hover:border-indigo-600 transition-all hover:scale-[1.02]">
-                                            <div className="w-20 h-20 rounded-[30px] bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 flex items-center justify-center font-black text-4xl mr-10 shadow-inner">{idx+1}</div>
-                                            <div className="flex-1 cursor-pointer truncate" onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view')}}>
-                                                <h4 className="font-black text-4xl uppercase tracking-tighter mb-2 text-black dark:text-white">{s.title}</h4>
-                                                <p className="text-lg opacity-60 font-black tracking-widest text-slate-700 dark:text-indigo-300">[{s.musicalKey || 'G'}] • {s.artist}</p>
-                                            </div>
-                                            <button onClick={async ()=>{ const news = activePlaylist.songs.filter(id => id !== sid); await fb.updateDoc(fb.doc(fb.db, 'artifacts', 'corario-pro-final-v42', 'users', user.uid, 'playlists', activePlaylist.id), { songs: news }); }} className="p-5 text-red-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded-3xl"><Icon name="trash-2" size={32}/></button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        ) : (
-                            <div className="space-y-[50vh] pb-80">
-                                {activePlaylist.songs?.map((sid, idx) => {
-                                    const s = songs.find(x => x.id === sid);
-                                    if (!s) return null;
-                                    return (
-                                        <div key={idx} className="song-presentation animate-in px-4">
-                                            <div className="mb-24 border-b-[15px] border-indigo-600/10 pb-12 flex items-end gap-12 text-black dark:text-white">
-                                                <span className="text-[18rem] font-black text-indigo-600/5 leading-none -mb-16 select-none">{idx + 1}</span>
-                                                <div className="flex-1 pb-8 text-left text-black dark:text-white">
-                                                    <h3 className="text-8xl sm:text-[11rem] font-black dark:text-white leading-none mb-10 tracking-tighter uppercase italic text-black">{s.title}</h3>
-                                                    <div className="flex items-center gap-4 opacity-40 font-black text-6xl tracking-widest uppercase">TONO: [{s.musicalKey}]</div>
-                                                </div>
-                                            </div>
-                                            <div className="text-7xl font-black leading-[2] text-black dark:text-white text-left">{renderLyrics(s.lyrics)}</div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                )}
               </main>
 
-              {/* CONTROLES FLOTANTES: SCROLL */}
+              {/* MODAL: NUEVO CULTO (REPARADO appId) */}
+              {showNewPlaylistModal && (
+                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in text-center modal-overlay">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-20 shadow-2xl relative border-8 border-indigo-500/10">
+                        <h3 className="text-5xl font-black uppercase mb-12 italic tracking-tighter leading-none text-slate-900 dark:text-white">Nombre del Culto</h3>
+                        <input type="text" placeholder="DOMINGO MAÑANA" className="w-full p-10 bg-slate-50 dark:bg-slate-800 rounded-[40px] mb-14 outline-none focus:ring-[15px] ring-indigo-500/10 font-black text-center text-4xl uppercase shadow-inner dark:text-white text-slate-900" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
+                        <div className="flex gap-6">
+                            <button onClick={()=>setShowNewPlaylistModal(false)} className="flex-1 py-6 font-black opacity-30 hover:opacity-100 uppercase text-sm tracking-[0.2em] transition-opacity dark:text-white">CANCELAR</button>
+                            <button onClick={async () => { 
+                                if(newPlaylistName && user){ 
+                                    await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), { name: newPlaylistName.trim().toUpperCase(), songs: [], updated: Date.now() }); 
+                                    setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("¡SERVICIO CREADO!"); 
+                                } 
+                            }} className="flex-1 bg-indigo-600 text-white py-8 rounded-[40px] font-black btn-3d shadow-xl text-lg tracking-widest uppercase">CREAR</button>
+                        </div>
+                    </div>
+                </div>
+              )}
+
+              {/* MODAL: AÑADIR A CULTO */}
+              {showAddSongModal && activePlaylist && (
+                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in modal-overlay">
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[90px] p-16 shadow-2xl max-h-[90vh] flex flex-col border-8 border-indigo-500/5">
+                        <div className="flex justify-between items-center mb-14 px-8 text-left">
+                            <div className="flex-1 text-slate-950 dark:text-white"><h3 className="text-6xl font-black uppercase italic tracking-tighter leading-none mb-4">Gestión</h3><p className="text-sm opacity-40 font-black uppercase tracking-[0.5em]">{activePlaylist.name}</p></div>
+                            <button onClick={()=>setShowAddSongModal(false)} className="p-8 bg-slate-100 dark:bg-slate-800 rounded-[40px] opacity-40 hover:opacity-100 text-slate-900 dark:text-white shadow-md"><Icon name="x" size={40}/></button>
+                        </div>
+                        <div className="overflow-y-auto space-y-5 flex-1 pr-6 custom-scrollbar px-6 pb-12">
+                            {songs.map(s => (
+                                <button key={s.id} onClick={async () => {
+                                    const hasSong = activePlaylist.songs?.includes(s.id);
+                                    let updatedSongs = hasSong ? activePlaylist.songs.filter(id => id !== s.id) : [...(activePlaylist.songs || []), s.id];
+                                    showToast(hasSong ? `QUITADA: ${s.title.toUpperCase()}` : `AÑADIDA: ${s.title.toUpperCase()}`, hasSong ? "error" : "success");
+                                    await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', activePlaylist.id), { songs: updatedSongs });
+                                }} className={`w-full p-10 rounded-[56px] border-4 text-left flex justify-between items-center transition-all ${activePlaylist.songs?.includes(s.id) ? 'bg-indigo-600 border-indigo-400 text-white translate-x-4 shadow-2xl scale-[1.02]' : 'bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-800 hover:border-indigo-500/40 shadow-lg'}`}>
+                                    <div className="flex-1 truncate pr-10 text-left">
+                                        <p className="font-black text-3xl uppercase tracking-tighter leading-none mb-3 text-slate-950 dark:text-white">{s.title}</p>
+                                        <p className={`text-sm font-bold uppercase tracking-widest ${activePlaylist.songs?.includes(s.id) ? 'text-indigo-200' : 'opacity-40 text-slate-950 dark:text-white'}`}>{s.artist || 'SIN AUTOR'}</p>
+                                    </div>
+                                    <Icon name={activePlaylist.songs?.includes(s.id) ? "check-circle" : "circle-plus"} size={48} className={activePlaylist.songs?.includes(s.id) ? "text-white" : "text-indigo-600"}/>
+                                </button>
+                            ))}
+                        </div>
+                        <button onClick={()=>setShowAddSongModal(false)} className="w-full bg-indigo-600 text-white py-10 rounded-[48px] font-black mt-10 btn-3d shadow-2xl tracking-[0.4em] uppercase text-2xl">LISTO</button>
+                    </div>
+                </div>
+              )}
+
+              {/* BOTÓN FLOTANTE SCROLL */}
               {(currentView === 'view' || (currentView === 'playlistView' && playlistMode === 'full')) && (
                 <div className="fixed bottom-12 right-12 flex flex-col items-center gap-8 z-[100] print-hidden floating-tools">
                     {isScrolling && (
                         <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-3xl p-8 rounded-[56px] shadow-2xl flex flex-col items-center gap-8 border-4 border-indigo-600/30 animate-in slide-in-from-bottom-10">
-                            <button onClick={()=>setScrollSpeed(s=>Math.min(10, s+1))} className="w-20 h-20 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-[30px] btn-3d btn-3d-secondary shadow-lg text-black dark:text-white transition-all"><Icon name="chevron-up" size={40} /></button>
-                            <div className="flex flex-col items-center"><span className="font-black text-indigo-600 text-6xl leading-none">{scrollSpeed}</span><span className="text-xs font-black opacity-60 uppercase mt-4 tracking-widest text-black dark:text-white">VELOCIDAD</span></div>
-                            <button onClick={()=>setScrollSpeed(s=>Math.max(1, s-1))} className="w-20 h-20 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-[30px] btn-3d btn-3d-secondary shadow-lg text-black dark:text-white transition-all"><Icon name="chevron-down" size={40} /></button>
+                            <button onClick={()=>setScrollSpeed(s=>Math.min(10, s+1))} className="w-20 h-20 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-[30px] btn-3d btn-3d-secondary shadow-lg text-slate-950 dark:text-white transition-all"><Icon name="chevron-up" size={40} /></button>
+                            <div className="flex flex-col items-center"><span className="font-black text-indigo-600 text-6xl leading-none">{scrollSpeed}</span><span className="text-xs font-black opacity-60 uppercase mt-4 tracking-widest text-slate-900 dark:text-white">VELOCIDAD</span></div>
+                            <button onClick={()=>setScrollSpeed(s=>Math.max(1, s-1))} className="w-20 h-20 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-[30px] btn-3d btn-3d-secondary shadow-lg text-slate-950 dark:text-white transition-all"><Icon name="chevron-down" size={40} /></button>
                         </div>
                     )}
                     <button onClick={() => setIsScrolling(!isScrolling)} className={`w-32 h-32 rounded-full btn-3d flex items-center justify-center shadow-2xl ${isScrolling ? 'bg-red-500' : 'bg-indigo-600'} text-white transform hover:scale-110 active:scale-95 transition-all`}>
@@ -607,20 +597,20 @@
                 </div>
               )}
 
-              {/* MODAL: AUTENTICACIÓN / REGISTRO REPARADO */}
+              {/* MODAL: AUTENTICACIÓN / REGISTRO */}
               {showAuthModal && (
                 <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in text-center">
-                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-14 shadow-2xl relative border-8 border-indigo-600/10 text-black dark:text-white transition-all">
-                        <button onClick={()=>setShowAuthModal(false)} className="absolute top-8 right-8 p-3 opacity-30 hover:opacity-100 text-black dark:text-white"><Icon name="x" size={32}/></button>
+                    <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-14 shadow-2xl relative border-8 border-indigo-600/10 text-slate-950 dark:text-white transition-all">
+                        <button onClick={()=>setShowAuthModal(false)} className="absolute top-8 right-8 p-3 opacity-30 hover:opacity-100 text-vibrant-day"><Icon name="x" size={32}/></button>
                         
                         <div className="flex gap-4 mb-10">
-                            <button onClick={()=>setAuthMode('login')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='login'?'bg-indigo-600 text-white border-indigo-800':'text-black dark:text-white opacity-40 border-transparent hover:opacity-70'}`}>ENTRAR</button>
-                            <button onClick={()=>setAuthMode('register')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='register'?'bg-indigo-600 text-white border-indigo-800':'text-black dark:text-white opacity-40 border-transparent hover:opacity-70'}`}>REGISTRAR</button>
+                            <button onClick={()=>setAuthMode('login')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='login'?'bg-indigo-600 text-white border-indigo-800':'text-vibrant-day opacity-40 border-transparent hover:opacity-70'}`}>ENTRAR</button>
+                            <button onClick={()=>setAuthMode('register')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='register'?'bg-indigo-600 text-white border-indigo-800':'text-vibrant-day opacity-40 border-transparent hover:opacity-70'}`}>REGISTRAR</button>
                         </div>
 
                         <div className="space-y-6">
-                            <input type="email" placeholder="EMAIL" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-200 dark:border-slate-700 font-black text-black dark:text-white transition-all" value={email} onChange={e=>setEmail(e.target.value)} />
-                            <input type="password" placeholder="CONTRASEÑA" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-200 dark:border-slate-700 font-black text-black dark:text-white transition-all" value={pass} onChange={e=>setPass(e.target.value)} />
+                            <input type="email" placeholder="EMAIL" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-200 dark:border-slate-700 font-black text-vibrant-day" value={email} onChange={e=>setEmail(e.target.value)} />
+                            <input type="password" placeholder="CONTRASEÑA" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-200 dark:border-slate-700 font-black text-vibrant-day" value={pass} onChange={e=>setPass(e.target.value)} />
                             
                             <button onClick={handleAuth} className="w-full py-8 bg-indigo-600 text-white rounded-[40px] font-black btn-3d shadow-xl uppercase tracking-[0.2em] text-lg transition-all">
                                 {authMode === 'login' ? 'INICIAR SESIÓN' : 'CREAR MI CUENTA'}
