@@ -14,7 +14,7 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=JetBrains+Mono&family=Playfair+Display:wght@700&display=swap');
         
         :root { --indigo-primary: #4338ca; }
         
@@ -46,7 +46,7 @@
         /* --- RENDERIZADO DE ACORDES --- */
         .chord-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem; min-height: 3em; }
         .chord-seg { display: inline-flex; flex-direction: column; vertical-align: bottom; margin-right: 3px; }
-        .chord-top { height: 1.4em; font-weight: 900; color: #4338ca; line-height: 1; white-space: nowrap; margin-bottom: 4px; user-select: none; font-family: 'JetBrains Mono', monospace; }
+        .chord-top { height: 1.4em; font-weight: 900; line-height: 1; white-space: nowrap; margin-bottom: 4px; user-select: none; font-family: 'JetBrains Mono', monospace; }
         .text-bottom { line-height: 1.3; white-space: pre; font-weight: 700; color: inherit; }
 
         /* MODO IMPRESORA */
@@ -64,30 +64,26 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #4338ca; border-radius: 10px; }
 
-        /* Forzar colores en modo día y noche */
+        /* Colores Dinámicos */
         body { background-color: #f8fafc; color: #020617; }
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
         
-        /* Visibilidad Crítica: Forzamos Negro en modo día */
         .text-vibrant-day { color: #020617 !important; opacity: 1 !important; font-weight: 900 !important; }
         .dark .text-vibrant-day { color: #ffffff !important; }
 
-        .song-card {
-            background-color: #ffffff;
-            border: 3px solid #000000;
-            box-shadow: 0 6px 0 #000000;
-        }
-        .dark .song-card {
-            background-color: #0f172a;
-            border-color: #1e293b;
-            box-shadow: 0 6px 0 #000000;
-        }
+        .song-card { background-color: #ffffff; border: 3px solid #000000; box-shadow: 0 6px 0 #000000; }
+        .dark .song-card { background-color: #0f172a; border-color: #1e293b; box-shadow: 0 6px 0 #000000; }
 
         .metronome-visual {
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%234338ca" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 21 3-10h-6l3 10Z"/><path d="m12 11 1-5h-2l1 5Z"/><circle cx="12" cy="11" r="1"/></svg>');
             background-repeat: no-repeat;
             background-position: center;
         }
+
+        /* Estilos de Fuente */
+        .font-modern { font-family: 'Inter', sans-serif; }
+        .font-elegant { font-family: 'Playfair Display', serif; }
+        .font-classic { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -137,7 +133,7 @@
           const [playlists, setPlaylists] = useState([]);
           const [loading, setLoading] = useState(true);
           
-          const APP_ID = "corario-estable-final-pro-v2"; 
+          const APP_ID = "corario-pro-final-v45"; 
 
           const [currentView, setCurrentView] = useState('list'); 
           const [activeTab, setActiveTab] = useState('songs');
@@ -152,6 +148,12 @@
           const [bpm, setBpm] = useState(120);
           const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
           
+          // --- ESTADOS DE ESTILO ---
+          const [showStylePanel, setShowStylePanel] = useState(false);
+          const [fontStyle, setFontStyle] = useState('font-modern');
+          const [lyricColor, setLyricColor] = useState('default');
+          const [chordColor, setChordColor] = useState('default');
+
           const [editTitle, setEditTitle] = useState('');
           const [editArtist, setEditArtist] = useState('');
           const [editLyrics, setEditLyrics] = useState('');
@@ -159,8 +161,6 @@
 
           const [searchQuery, setSearchQuery] = useState('');
           const [toast, setToast] = useState(null);
-          const [isAiLoading, setIsAiLoading] = useState(false);
-          const [aiDevotional, setAiDevotional] = useState(null);
 
           const [showAuthModal, setShowAuthModal] = useState(false);
           const [authMode, setAuthMode] = useState('login'); 
@@ -173,6 +173,7 @@
           const [playlistMode, setPlaylistMode] = useState('list');
 
           const audioCtxRef = useRef(null);
+          const textareaRef = useRef(null);
 
           useEffect(() => {
             if (isDarkMode) document.documentElement.classList.add('dark');
@@ -198,34 +199,6 @@
             });
             return () => { unsubS(); unsubP(); };
           }, [user]);
-
-          // --- MOTOR IA (MODELO CORRECTO) ---
-          const handleIA = async (mode) => {
-            if (mode === 'reharmonize' && !editLyrics) return showToast("Escribe la letra primero", "error");
-            setIsAiLoading(true);
-            const apiKey = "AIzaSyAqMDVdI0mjTf9Mdvg1SmkPUZaaxV8X2o4";
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-            const promptText = mode === 'reharmonize' 
-                ? `Actúa como músico experto. Rearmoniza con acordes avanzados entre corchetes [Acorde]. Cifrado Americano. Solo texto rearmonizado:\n${editLyrics}`
-                : `Dame un devocional cristiano breve para la alabanza "${songs.find(s=>s.id===activeSongId)?.title}". Un versículo y reflexión corta.`;
-            try {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ parts: [{ text: promptText }] }] })
-                });
-                const data = await response.json();
-                const result = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (result) {
-                    const cleaned = result.replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').trim();
-                    if (mode === 'reharmonize') setEditLyrics(cleaned);
-                    else setAiDevotional(cleaned);
-                    showToast("¡IA completada!");
-                }
-            } catch (e) { 
-                showToast(`Reintentando...`, "error"); 
-            } finally { setIsAiLoading(false); }
-          };
 
           useEffect(() => {
             let interval;
@@ -254,11 +227,20 @@
             return () => clearInterval(interval);
           }, [isMetronomePlaying, bpm]);
 
-          const transposeChord = (chord, steps) => {
-            if (!chord || steps === 0) return chord;
+          // Mapeo de Colores
+          const lyricStyleMap = { 
+            'default': isDarkMode ? '#f8fafc' : '#020617', 
+            'blue': '#2563eb', 'emerald': '#059669', 'rose': '#e11d48', 'amber': '#d97706' 
+          };
+          const chordStyleMap = { 
+            'default': '#4338ca', 'red': '#dc2626', 'teal': '#0d9488', 'violet': '#7c3aed', 'orange': '#ea580c' 
+          };
+
+          const transposeChord = (chordStr, steps) => {
+            if (!chordStr || steps === 0) return chordStr;
             const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
             const mapEs = { 'DO':'C', 'RE':'D', 'MI':'E', 'FA':'F', 'SOL':'G', 'LA':'A', 'SI':'B' };
-            return chord.replace(/([A-G]|Do|Re|Mi|Fa|Sol|La|Si)[#b]?/gi, (m) => {
+            return chordStr.replace(/([A-G]|Do|Re|Mi|Fa|Sol|La|Si)[#b]?/gi, (m) => {
                 let n = m.toUpperCase();
                 if (mapEs[n]) n = mapEs[n];
                 let idx = notes.indexOf(n.replace('B', '#'));
@@ -270,7 +252,7 @@
             });
           };
 
-          const renderLyrics = (text) => {
+          const renderLyrics = (text, steps = transposeSteps) => {
             if (!text) return null;
             return text.split('\n').map((line, i) => {
                 if (!line.trim()) return <div key={i} className="h-4"></div>;
@@ -283,13 +265,13 @@
                 });
                 if (lastChord) segments.push({ chord: lastChord, text: "" });
                 return (
-                    <div key={i} className="chord-line notranslate" translate="no">
+                    <div key={i} className={`chord-line notranslate ${fontStyle}`} translate="no">
                         {segments.map((seg, j) => (
                             <div key={j} className="chord-seg notranslate">
-                                <span className="chord-top notranslate" style={{ fontSize: `${textSize*0.75}px` }}>
-                                    {seg.chord ? transposeChord(seg.chord, transposeSteps) : '\u00A0'}
+                                <span className="chord-top notranslate" style={{ fontSize: `${textSize*0.75}px`, color: chordStyleMap[chordColor] }}>
+                                    {seg.chord ? transposeChord(seg.chord, steps) : '\u00A0'}
                                 </span>
-                                <span className="text-bottom notranslate text-vibrant-day" style={{ fontSize: `${textSize}px` }}>
+                                <span className="text-bottom notranslate" style={{ fontSize: `${textSize}px`, color: lyricStyleMap[lyricColor] }}>
                                     {seg.text || (seg.chord ? '\u00A0' : '')}
                                 </span>
                             </div>
@@ -299,15 +281,17 @@
             });
           };
 
+          // --- VINCULACION MEJORADA ---
           const linkChordsManually = () => {
             if (!editLyrics) return;
             const lines = editLyrics.split('\n');
             let result = [];
-            const isChord = (w) => /^[A-G][#b]?(m|maj|min|dim|aug|sus|add|[0-9]|[-+()/#])*$/i.test(w) || /^(Do|Re|Mi|Fa|Sol|La|Si)[#b]?(m|maj|min|dim|aug|sus|add|[0-9]|[-+()/#])*$/i.test(w);
+            const chordRegex = /^([A-G]|Do|Re|Mi|Fa|Sol|La|Si)[#b]?(m|maj|min|dim|aug|sus|add|[0-9]|[-+()/#])*$/i;
             for (let i = 0; i < lines.length; i++) {
                 const current = lines[i]; const next = lines[i+1];
                 const words = current.trim().split(/\s+/);
-                if (words.length > 0 && words.every(w => isChord(w)) && next) {
+                const isChordLine = words.length > 0 && words.every(w => chordRegex.test(w));
+                if (isChordLine && next) {
                     let merged = next.split(''); let offset = 0;
                     const regex = /([^\s]+)/g; let m;
                     while ((m = regex.exec(current)) !== null) {
@@ -322,10 +306,25 @@
             showToast("¡Acordes vinculados!");
           };
 
+          const insertBracket = (side) => {
+              if (!textareaRef.current) return;
+              const start = textareaRef.current.selectionStart;
+              const end = textareaRef.current.selectionEnd;
+              const text = editLyrics;
+              const before = text.substring(0, start);
+              const after = text.substring(end);
+              setEditLyrics(before + (side === 'left' ? '[' : ']') + after);
+              // Devolvemos el foco
+              setTimeout(() => {
+                  textareaRef.current.focus();
+                  textareaRef.current.setSelectionRange(start + 1, start + 1);
+              }, 0);
+          };
+
           const handleSave = async () => {
             if (!editTitle.trim()) return showToast("Falta el título", "error");
             try {
-                const data = { title: editTitle, artist: editArtist, lyrics: editLyrics, musicalKey: editKey, updated: Date.now() };
+                const data = { title: editTitle, artist: editArtist, lyrics: editLyrics, musicalKey: editKey, updatedAt: Date.now() };
                 if (activeSongId) await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs', activeSongId), data);
                 else await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs'), data);
                 setCurrentView('list'); setEditTitle(''); setEditLyrics('');
@@ -334,17 +333,12 @@
           };
 
           const handleAuth = async () => {
-              if(!email || pass.length < 6) return showToast("Clave min 6 carac.", "error");
+              if(!email || pass.length < 6) return showToast("Min. 6 caracteres", "error");
               try {
-                  if(authMode === 'register') {
-                    await fb.createUserWithEmailAndPassword(fb.auth, email, pass);
-                    showToast("Registro exitoso");
-                  } else {
-                    await fb.signInWithEmailAndPassword(fb.auth, email, pass);
-                    showToast("Bienvenido");
-                  }
+                  if(authMode === 'register') await fb.createUserWithEmailAndPassword(fb.auth, email, pass);
+                  else await fb.signInWithEmailAndPassword(fb.auth, email, pass);
                   setShowAuthModal(false);
-              } catch(e) { showToast("Email inválido o cuenta ocupada", "error"); }
+              } catch(e) { showToast("Error en credenciales", "error"); }
           };
 
           const showToast = (message, type = "success") => { setToast({message, type}); setTimeout(() => setToast(null), 3000); };
@@ -363,24 +357,24 @@
                 <div className="max-w-5xl mx-auto flex flex-row justify-between items-center w-full">
                     <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => {setCurrentView('list'); setIsScrolling(false);}}>
                         <Icon name="music" size={30} className="text-white" />
-                        <h1 className="text-2xl font-black italic uppercase tracking-tighter hidden sm:block">Corario AI</h1>
+                        <h1 className="text-2xl font-black italic uppercase tracking-tighter hidden sm:block text-white">Corario AI</h1>
                     </div>
                     <div className="flex items-center gap-3">
                         <button onClick={() => setIsDarkMode(!isDarkMode)} className="w-12 h-12 flex items-center justify-center bg-white/10 dark:bg-slate-800 rounded-2xl btn-3d btn-3d-secondary transition-transform active:scale-90">
-                            <Icon name={isDarkMode ? "sun" : "moon"} size={22} />
+                            <Icon name={isDarkMode ? "sun" : "moon"} size={22} className="text-white" />
                         </button>
                         {user && !user.isAnonymous ? (
                             <button onClick={() => fb.signOut(fb.auth)} className="w-12 h-12 rounded-2xl border-2 border-white/20 overflow-hidden bg-indigo-500 shadow-md transition-all">
                                 <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`} className="w-full h-full object-cover" />
                             </button>
                         ) : (
-                            <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-indigo-700">ENTRAR</button>
+                            <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest">ENTRAR</button>
                         )}
                     </div>
                 </div>
               </header>
 
-              <main className="max-w-4xl mx-auto p-4 md:p-10">
+              <main className="max-w-5xl mx-auto p-4 md:p-10">
                 {currentView === 'list' && (
                     <div className="animate-in">
                         <div className="flex gap-4 mb-10 tabs-nav">
@@ -393,13 +387,13 @@
                                 <div className="flex gap-4 mb-10 search-bar">
                                     <div className="relative flex-1">
                                         <Icon name="search" className="absolute left-6 top-6 opacity-60 text-slate-950 dark:text-white" />
-                                        <input type="text" placeholder="Buscar título..." className="w-full pl-16 pr-8 py-6 rounded-[32px] bg-white dark:bg-slate-900 shadow-inner outline-none border-4 border-slate-950 focus:border-indigo-500 font-black text-slate-950 dark:text-white text-xl" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
+                                        <input type="text" placeholder="Buscar título..." className="w-full pl-16 pr-8 py-6 rounded-[32px] bg-white dark:bg-slate-900 shadow-inner outline-none border-4 border-slate-950 focus:border-indigo-600 font-black text-slate-950 dark:text-white text-xl" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
                                     </div>
                                     <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-20 h-20 flex items-center justify-center rounded-[32px] shrink-0 shadow-2xl"><Icon name="plus" size={40} /></button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {songs.filter(s => s.title?.toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
-                                        <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setAiDevotional(null); setCurrentView('view');}} className="p-10 song-card rounded-[48px] cursor-pointer flex justify-between items-center group transition-all hover:scale-[1.03]">
+                                        <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-10 song-card rounded-[48px] cursor-pointer flex justify-between items-center group transition-all hover:scale-[1.03]">
                                             <div className="overflow-hidden pr-4">
                                                 <h3 className="font-black text-2xl uppercase tracking-tighter truncate text-vibrant-day group-hover:text-indigo-600 transition-colors">{s.title}</h3>
                                                 <p className="text-sm font-bold mt-2 uppercase tracking-[0.2em] text-slate-600 dark:text-indigo-300 opacity-80">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
@@ -433,39 +427,68 @@
                 {currentView === 'view' && activeSong && (
                     <div className="animate-in pb-40 song-content">
                         <div className="flex justify-between items-center mb-12 print-hidden">
-                            <button onClick={() => setCurrentView('list')} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d bg-indigo-600 text-white px-8 py-4 rounded-3xl transition-all hover:scale-105 active:scale-95 shadow-xl">
+                            <button onClick={() => { setCurrentView('list'); setShowStylePanel(false); }} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d bg-indigo-600 text-white px-8 py-4 rounded-3xl transition-all hover:scale-105 shadow-xl">
                                 <Icon name="arrow-left" size={20}/> VOLVER
                             </button>
                             <div className="flex gap-4">
+                                <button className="p-4 bg-white dark:bg-slate-800 text-indigo-600 rounded-2xl btn-3d btn-3d-secondary shadow-lg" onClick={() => setShowStylePanel(!showStylePanel)} title="Paleta de Colores"><Icon name="palette" size={28}/></button>
                                 <button onClick={() => window.print()} className="p-4 bg-slate-800 text-white rounded-2xl btn-3d shadow-lg" title="Imprimir"><Icon name="printer" size={28}/></button>
-                                <button onClick={() => { 
-                                    setEditTitle(activeSong.title); setEditArtist(activeSong.artist || ''); 
-                                    setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey || ''); 
-                                    setCurrentView('edit'); 
-                                }} className="p-4 bg-emerald-600 text-white rounded-2xl btn-3d shadow-lg" title="Editar"><Icon name="edit-3" size={28}/></button>
+                                <button onClick={() => { setEditTitle(activeSong.title); setEditArtist(activeSong.artist || ''); setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey || ''); setCurrentView('edit'); }} className="p-4 bg-indigo-600 text-white rounded-2xl btn-3d shadow-lg" title="Editar"><Icon name="edit-3" size={28}/></button>
                             </div>
                         </div>
 
+                        {/* PANEL DE ESTILO / PALETA */}
+                        {showStylePanel && (
+                            <div className="bg-white dark:bg-slate-900 p-8 rounded-[48px] border-4 border-slate-200 dark:border-slate-800 mb-12 shadow-2xl animate-in print:hidden">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-4 tracking-widest">Estilo Fuente</label>
+                                        <div className="grid grid-cols-3 gap-3">
+                                            {['font-modern', 'font-elegant', 'font-classic'].map(f => (
+                                                <button key={f} onClick={()=>setFontStyle(f)} className={`py-3 rounded-xl text-xs font-bold border-2 transition-all ${fontStyle===f?'bg-indigo-600 border-indigo-600 text-white':'bg-slate-50 dark:bg-slate-800 border-transparent dark:text-white'}`}>{f.split('-')[1].toUpperCase()}</button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-4 tracking-widest">Color Letra</label>
+                                        <div className="flex gap-3">
+                                            {['default', 'blue', 'emerald', 'rose', 'amber'].map(c => (
+                                                <button key={c} onClick={()=>setLyricColor(c)} className={`w-10 h-10 rounded-full border-4 ${lyricColor===c?'border-indigo-600 scale-110 shadow-lg':'border-transparent'}`} style={{ backgroundColor: c==='default'?(isDarkMode?'#e2e8f0':'#1e293b'):c==='blue'?'#3b82f6':c==='emerald'?'#10b981':c==='rose'?'#f43f5e':'#f59e0b' }}></button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black uppercase text-slate-400 block mb-4 tracking-widest">Color Acordes</label>
+                                        <div className="flex gap-3">
+                                            {['default', 'red', 'teal', 'violet', 'orange'].map(c => (
+                                                <button key={c} onClick={()=>setChordColor(c)} className={`w-10 h-10 rounded-full border-4 ${chordColor===c?'border-indigo-600 scale-110 shadow-lg':'border-transparent'}`} style={{ backgroundColor: c==='default'?'#4338ca':c==='red'?'#dc2626':c==='teal'?'#0d9488':c==='violet'?'#7c3aed':'#ea580c' }}></button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="mb-20">
-                            <h2 className="text-7xl sm:text-9xl font-black mb-6 uppercase leading-none tracking-tighter text-vibrant-day">{activeSong.title}</h2>
-                            <p className="text-4xl opacity-60 italic mb-14 uppercase tracking-widest font-bold text-vibrant-day">{activeSong.artist || 'MÚSICA CRISTIANA'}</p>
+                            <h2 className={`text-7xl sm:text-9xl font-black mb-6 uppercase leading-none tracking-tighter ${fontStyle} text-vibrant-day`}>{activeSong.title}</h2>
+                            <p className={`text-4xl opacity-60 italic mb-14 uppercase tracking-widest font-bold ${fontStyle} text-vibrant-day`}>{activeSong.artist || 'MÚSICA CRISTIANA'}</p>
                             
                             <div className="flex flex-wrap gap-6 items-center bg-white dark:bg-slate-900 p-8 rounded-[48px] shadow-2xl border-4 border-slate-950 dark:border-slate-800 print-hidden tools-container">
                                 <div className="flex items-center gap-4">
                                     <button onClick={()=>setTransposeSteps(s=>s-1)} className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-3xl font-black btn-3d btn-3d-secondary text-2xl shadow-md text-vibrant-day">-</button>
-                                    <div className="px-10 font-black text-indigo-600 uppercase tracking-[0.2em] text-3xl">{transposeSteps === 0 ? (activeSong.musicalKey || 'G') : transposeChord(activeSong.musicalKey, transposeSteps)}</div>
+                                    <div className="px-10 font-black text-indigo-600 uppercase tracking-[0.2em] text-3xl">
+                                        {transposeSteps === 0 ? (activeSong.musicalKey || 'G') : transposeChord(activeSong.musicalKey || 'G', transposeSteps)}
+                                    </div>
                                     <button onClick={()=>setTransposeSteps(s=>s+1)} className="w-16 h-16 bg-slate-100 dark:bg-slate-800 rounded-3xl font-black btn-3d btn-3d-secondary text-2xl shadow-md text-vibrant-day">+</button>
                                 </div>
                                 <div className="hidden sm:block h-16 w-1 bg-slate-200 dark:bg-slate-800 mx-8 rounded-full"></div>
                                 <div className="flex items-center gap-4 text-vibrant-day">
                                     <button onClick={()=>setBpm(b=>Math.max(40, b-5))} className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl font-black btn-3d btn-3d-secondary shadow-md">-</button>
-                                    
                                     <div className="flex flex-col items-center w-28 bg-slate-50 dark:bg-slate-950 p-2 rounded-2xl shadow-inner border-4 border-slate-950">
                                         <div className="metronome-visual w-6 h-6 mb-1 text-indigo-600"></div>
-                                        <span className="font-mono font-black text-3xl leading-none text-slate-950 dark:text-white">{bpm}</span>
+                                        <span className="font-mono font-black text-3xl leading-none">{bpm}</span>
                                         <span className="text-[10px] font-black opacity-60 mt-1 tracking-widest uppercase text-slate-950 dark:text-white">BPM</span>
                                     </div>
-
                                     <button onClick={()=>setBpm(b=>Math.min(240, b+5))} className="w-14 h-14 bg-slate-100 dark:bg-slate-800 rounded-2xl font-black btn-3d btn-3d-secondary shadow-md">+</button>
                                     <button onClick={()=>setIsMetronomePlaying(!isMetronomePlaying)} className={`w-16 h-16 rounded-[24px] btn-3d shadow-xl ml-4 flex items-center justify-center text-white ${isMetronomePlaying?'bg-red-600 shadow-red-500/20':'bg-emerald-600 shadow-emerald-500/20'}`}>
                                         <Icon name={isMetronomePlaying ? "pause" : "play"} size={32}/>
@@ -474,7 +497,7 @@
                             </div>
                         </div>
 
-                        <div className="pb-60 px-4 text-5xl leading-[1.8] font-bold text-vibrant-day">{renderLyrics(activeSong.lyrics)}</div>
+                        <div className="pb-60 px-4 leading-[1.8] font-bold text-vibrant-day">{renderLyrics(activeSong.lyrics, transposeSteps)}</div>
                     </div>
                 )}
 
@@ -483,7 +506,7 @@
                     <div className="animate-in pb-60">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-10 border-b-8 border-indigo-500/10 pb-14 print-hidden">
                             <div className="flex-1">
-                                <button onClick={() => { setCurrentView('list'); setPlaylistMode('list'); }} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d bg-indigo-600 text-white px-8 py-4 rounded-3xl transition-all hover:scale-105 active:scale-95 shadow-xl mb-6">
+                                <button onClick={() => { setCurrentView('list'); setPlaylistMode('list'); }} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d bg-indigo-600 text-white px-8 py-4 rounded-3xl transition-all hover:scale-105 shadow-xl mb-6">
                                     <Icon name="chevron-left" size={20}/> VOLVER
                                 </button>
                                 <h2 className="text-8xl font-black uppercase tracking-tighter leading-none break-words italic text-vibrant-day">{activePlaylist.name}</h2>
@@ -522,18 +545,17 @@
                                     return (
                                         <div key={idx} className="song-presentation animate-in px-4 text-left">
                                             <div className="mb-24 border-b-[15px] border-indigo-600/10 pb-12 flex items-end gap-12 text-vibrant-day">
-                                                {/* CORRECCIÓN: NÚMERO AZUL EN MODO PRESENTACIÓN */}
                                                 <span className="text-[18rem] font-black text-indigo-600 leading-none -mb-16 select-none">{idx + 1}</span>
                                                 <div className="flex-1 pb-8 text-left text-vibrant-day">
-                                                    <h3 className="text-8xl sm:text-[11rem] font-black dark:text-white leading-none mb-10 tracking-tighter uppercase italic text-vibrant-day">{s.title}</h3>
-                                                    <div className="flex flex-wrap items-center gap-6 opacity-80 font-black text-6xl tracking-widest uppercase text-vibrant-day">
+                                                    <h3 className={`text-8xl sm:text-[11rem] font-black dark:text-white leading-none mb-10 tracking-tighter uppercase italic ${fontStyle}`}>{s.title}</h3>
+                                                    <div className="flex flex-wrap items-center gap-6 opacity-80 font-black text-6xl tracking-widest uppercase">
                                                         <span>TONO: [{s.musicalKey}]</span>
                                                         <span className="opacity-50 text-indigo-400">•</span>
                                                         <span>{s.artist}</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <div className="text-7xl font-black leading-[2] text-vibrant-day text-left">{renderLyrics(s.lyrics)}</div>
+                                            <div className="text-7xl font-black leading-[2] text-vibrant-day text-left">{renderLyrics(s.lyrics, 0)}</div>
                                         </div>
                                     );
                                 })}
@@ -542,7 +564,7 @@
                     </div>
                 )}
 
-                {/* --- EDITOR --- */}
+                {/* --- EDITOR CON BOTONES DE CORCHETES --- */}
                 {currentView === 'edit' && (
                     <div className="animate-in pb-20">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-8 text-vibrant-day">
@@ -555,17 +577,31 @@
                             </div>
                         </div>
                         <div className="space-y-10">
-                            <input type="text" placeholder="TÍTULO DE LA ALABANZA..." className="w-full p-10 rounded-[48px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-2xl dark:text-white transition-all text-slate-950" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
+                            <input type="text" placeholder="TÍTULO DE LA CANCIÓN..." className="w-full p-10 rounded-[48px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-2xl dark:text-white transition-all text-slate-950" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                 <input type="text" placeholder="COMPOSITOR / AUTOR" className="w-full p-8 rounded-[32px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-700 font-black text-xl text-slate-950 dark:text-white shadow-inner" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
                                 <input type="text" placeholder="TONO (EJ: G)" className="w-full p-8 rounded-[32px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-700 font-black text-xl text-slate-950 dark:text-white shadow-inner" value={editKey} onChange={e=>setEditKey(e.target.value)} />
                             </div>
                             
-                            <button onClick={linkChordsManually} className="w-full py-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-[40px] font-black text-2xl tracking-[0.2em] border-4 border-indigo-600 flex items-center justify-center gap-5 hover:bg-indigo-100 transition-all btn-3d btn-3d-secondary shadow-xl uppercase">
-                                <Icon name="wand-2" size={40} /> VINCULAR ACORDES CON LETRA
-                            </button>
+                            <div className="flex flex-col sm:flex-row gap-4">
+                                <button onClick={linkChordsManually} className="flex-1 py-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-[40px] font-black text-2xl tracking-[0.2em] border-4 border-indigo-600 flex items-center justify-center gap-5 hover:bg-indigo-100 transition-all btn-3d btn-3d-secondary shadow-xl uppercase">
+                                    <Icon name="wand-2" size={40} /> VINCULAR AUTOMÁTICAMENTE
+                                </button>
+                                
+                                {/* BOTONES DE CORCHETES */}
+                                <div className="flex gap-4">
+                                    <button onClick={() => insertBracket('left')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black">[</button>
+                                    <button onClick={() => insertBracket('right')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black">]</button>
+                                </div>
+                            </div>
 
-                            <textarea placeholder="Pega letra con acordes encima..." className="w-full h-[700px] p-12 rounded-[80px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-950 font-mono text-2xl font-bold leading-relaxed outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar resize-none dark:text-white shadow-inner text-slate-950" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
+                            <textarea 
+                                ref={textareaRef}
+                                placeholder="Pega letra con acordes encima..." 
+                                className="w-full h-[700px] p-12 rounded-[80px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-950 font-mono text-2xl font-bold leading-relaxed outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar resize-none dark:text-white shadow-inner text-slate-950" 
+                                value={editLyrics} 
+                                onChange={e=>setEditLyrics(e.target.value)} 
+                            />
                         </div>
                     </div>
                 )}
@@ -587,22 +623,22 @@
                 </div>
               )}
 
-              {/* MODALES */}
+              {/* MODALES REPARADOS */}
               {showNewPlaylistModal && (
-                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in text-center modal-overlay">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] animate-in text-center modal-overlay">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-20 shadow-2xl relative border-8 border-indigo-500/10 text-vibrant-day transition-all">
                         <h3 className="text-5xl font-black uppercase mb-12 italic tracking-tighter leading-none">Nombre del Culto</h3>
                         <input type="text" placeholder="DOMINGO MAÑANA" className="w-full p-10 bg-slate-50 dark:bg-slate-900 rounded-[40px] mb-14 outline-none border-4 border-slate-950 font-black text-center text-4xl uppercase shadow-inner dark:text-white text-slate-950" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
                         <div className="flex gap-6">
                             <button onClick={()=>setShowNewPlaylistModal(false)} className="flex-1 py-6 font-black opacity-40 hover:opacity-100 uppercase text-sm tracking-[0.2em] text-vibrant-day">CANCELAR</button>
-                            <button onClick={async () => { if(newPlaylistName && user){ await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), { name: newPlaylistName.trim().toUpperCase(), songs: [], updated: Date.now() }); setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("¡SERVICIO CREADO!"); } }} className="flex-1 bg-indigo-600 text-white py-8 rounded-[40px] font-black btn-3d shadow-xl text-lg tracking-widest uppercase text-sm text-center">CREAR</button>
+                            <button onClick={async () => { if(newPlaylistName && user){ await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), { name: newPlaylistName.trim().toUpperCase(), songs: [], updatedAt: Date.now() }); setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("¡SERVICIO CREADO!"); } }} className="flex-1 bg-indigo-600 text-white py-8 rounded-[40px] font-black btn-3d shadow-xl text-lg tracking-widest uppercase text-sm text-center">CREAR</button>
                         </div>
                     </div>
                 </div>
               )}
 
               {showAuthModal && (
-                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in text-center">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] animate-in text-center">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-14 shadow-2xl relative border-8 border-indigo-600/10 text-slate-950 dark:text-white transition-all">
                         <button onClick={()=>setShowAuthModal(false)} className="absolute top-8 right-8 p-3 opacity-30 hover:opacity-100 text-vibrant-day"><Icon name="x" size={32}/></button>
                         <div className="flex gap-4 mb-10">
@@ -621,7 +657,7 @@
               )}
 
               {showAddSongModal && activePlaylist && (
-                <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-3xl flex items-center justify-center p-4 z-[1000] animate-in modal-overlay">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] animate-in modal-overlay">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-[90px] p-16 shadow-2xl max-h-[90vh] flex flex-col border-8 border-indigo-500/5">
                         <div className="flex justify-between items-center mb-14 px-8 text-left">
                             <div className="flex-1 text-vibrant-day"><h3 className="text-6xl font-black uppercase italic tracking-tighter leading-none mb-4">Gestión</h3><p className="text-sm opacity-40 font-black uppercase tracking-[0.5em]">{activePlaylist.name}</p></div>
