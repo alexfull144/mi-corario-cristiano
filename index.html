@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google" content="notranslate">
-    <title>My Corario - Versión Maestra</title>
+    <title>My Corario - App Oficial</title>
     
     <!-- Librerías de Producción -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -41,11 +41,10 @@
         }
         
         .btn-3d-secondary { box-shadow: 0 4px 0 #334155; border-color: #334155; }
-        .btn-3d-amber { box-shadow: 0 4px 0 #78350f; border-color: #78350f; }
 
         /* --- RENDERIZADO DE ACORDES --- */
         .chord-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem; min-height: 3em; }
-        .chord-seg { display: inline-flex; flex-direction: column; vertical-align: bottom; margin-right: 3px; }
+        .chord-seg { display: inline-flex; flex-direction: column; vertical-align: bottom; margin-right: 4px; }
         .chord-top { height: 1.4em; font-weight: 900; line-height: 1; white-space: nowrap; margin-bottom: 4px; user-select: none; font-family: 'JetBrains Mono', monospace; }
         .text-bottom { line-height: 1.3; white-space: pre; font-weight: 700; color: inherit; }
 
@@ -68,7 +67,7 @@
         body { background-color: #f8fafc; color: #020617; }
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
         
-        /* Visibilidad del Título Crítica: Forzado con !important */
+        /* Visibilidad del Título Crítica: Blindado para Modo Presentación */
         .text-vibrant-day { color: #020617 !important; opacity: 1 !important; font-weight: 900 !important; }
         .dark .text-vibrant-day { color: #ffffff !important; }
 
@@ -87,8 +86,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, fetchSignInMethodsForEmail } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAqMDVdI0mjTf9Mdvg1SmkPUZaaxV8X2o4",
@@ -105,7 +104,7 @@
         const db = getFirestore(app);
         const googleProvider = new GoogleAuthProvider();
 
-        window.FB = { auth, db, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, signInAnonymously, onAuthStateChanged, googleProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, fetchSignInMethodsForEmail };
+        window.FB = { auth, db, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, getDoc, signInAnonymously, onAuthStateChanged, googleProvider, signInWithPopup, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithCustomToken };
     </script>
 
     <script type="text/babel">
@@ -129,7 +128,7 @@
           const [playlists, setPlaylists] = useState([]);
           const [loading, setLoading] = useState(true);
           
-          const APP_ID = "corario-maestro-v1"; 
+          const appId = "my-corario-permanent-v1"; 
 
           const [currentView, setCurrentView] = useState('list'); 
           const [activeTab, setActiveTab] = useState('songs');
@@ -179,21 +178,36 @@
             else document.documentElement.classList.remove('dark');
           }, [isDarkMode]);
 
+          // Autenticación segura
           useEffect(() => {
-            const unsub = fb.onAuthStateChanged(fb.auth, (u) => {
-              if (u) setUser(u);
-              else fb.signInAnonymously(fb.auth);
-              setLoading(false);
-            });
+            const initAuth = async () => {
+              try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                  await fb.signInWithCustomToken(fb.auth, __initial_auth_token);
+                } else {
+                  const unsubAuth = fb.onAuthStateChanged(fb.auth, (u) => {
+                    if (u) setUser(u);
+                    else fb.signInAnonymously(fb.auth);
+                    setLoading(false);
+                  });
+                  return () => unsubAuth();
+                }
+              } catch (err) {
+                await fb.signInAnonymously(fb.auth);
+                setLoading(false);
+              }
+            };
+            initAuth();
+            const unsub = fb.onAuthStateChanged(fb.auth, (u) => { if (u) setUser(u); });
             return () => unsub();
           }, []);
 
           useEffect(() => {
             if (!user) return;
-            const unsubS = fb.onSnapshot(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs'), (snap) => {
+            const unsubS = fb.onSnapshot(fb.collection(fb.db, 'artifacts', appId, 'users', user.uid, 'songs'), (snap) => {
               setSongs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             });
-            const unsubP = fb.onSnapshot(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), (snap) => {
+            const unsubP = fb.onSnapshot(fb.collection(fb.db, 'artifacts', appId, 'users', user.uid, 'playlists'), (snap) => {
               setPlaylists(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             });
             return () => { unsubS(); unsubP(); };
@@ -201,9 +215,7 @@
 
           useEffect(() => {
             let interval;
-            if (isScrolling) {
-                interval = setInterval(() => { window.scrollBy(0, scrollSpeed); }, 50);
-            }
+            if (isScrolling) interval = setInterval(() => window.scrollBy(0, scrollSpeed), 50);
             return () => clearInterval(interval);
           }, [isScrolling, scrollSpeed]);
 
@@ -215,8 +227,8 @@
                     const osc = audioCtxRef.current.createOscillator();
                     const gain = audioCtxRef.current.createGain();
                     osc.connect(gain); gain.connect(audioCtxRef.current.destination);
-                    osc.frequency.value = 1200;
-                    gain.gain.setValueAtTime(0.15, audioCtxRef.current.currentTime);
+                    osc.frequency.value = 1000;
+                    gain.gain.setValueAtTime(0.2, audioCtxRef.current.currentTime);
                     gain.gain.exponentialRampToValueAtTime(0.001, audioCtxRef.current.currentTime + 0.05);
                     osc.start(); osc.stop(audioCtxRef.current.currentTime + 0.05);
                 }, 60000 / bpm);
@@ -281,19 +293,50 @@
             if (!editTitle.trim()) return showToast("Falta el título", "error");
             try {
                 const data = { title: editTitle, artist: editArtist, lyrics: editLyrics, musicalKey: editKey, updatedAt: Date.now() };
-                if (activeSongId) await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs', activeSongId), data);
-                else await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs'), data);
+                if (activeSongId) await fb.updateDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'songs', activeSongId), data);
+                else await fb.addDoc(fb.collection(fb.db, 'artifacts', appId, 'users', user.uid, 'songs'), data);
                 setCurrentView('list'); setEditTitle(''); setEditLyrics('');
-                showToast("¡Alabanza guardada!");
+                showToast("¡Guardado!");
             } catch (e) { showToast("Error al guardar", "error"); }
+          };
+
+          const linkChordsManually = () => {
+            if (!editLyrics) return;
+            const lines = editLyrics.split('\n');
+            let result = [];
+            const chordRegex = /^([A-G]|Do|Re|Mi|Fa|Sol|La|Si)[#b]?(m|maj|min|dim|aug|sus|add|[0-9]|[-+()/#])*$/i;
+            for (let i = 0; i < lines.length; i++) {
+                const current = lines[i]; const next = lines[i+1];
+                const words = current.trim().split(/\s+/);
+                const isChordLine = words.length > 0 && words.every(w => chordRegex.test(w));
+                if (isChordLine && next) {
+                    let merged = next.split(''); let offset = 0;
+                    const regex = /([^\s]+)/g; let m;
+                    while ((m = regex.exec(current)) !== null) {
+                        const tag = `[${m[0]}]`;
+                        merged.splice(Math.min(m.index + offset, merged.length), 0, tag);
+                        offset += tag.length;
+                    }
+                    result.push(merged.join('')); i++; 
+                } else { result.push(current); }
+            }
+            setEditLyrics(result.join('\n'));
+            showToast("¡Acordes vinculados!");
+          };
+
+          const handleShare = () => {
+              const url = window.location.origin + window.location.pathname + '?share=' + activePlaylist.id;
+              navigator.clipboard.writeText(url);
+              showToast("Enlace copiado");
           };
 
           const confirmDelete = async () => {
               if(!itemToDelete) return;
               try {
-                  if(itemToDelete.type === 'song') await fb.deleteDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs', itemToDelete.id));
-                  else if(itemToDelete.type === 'playlist') await fb.deleteDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', itemToDelete.id));
+                  if(itemToDelete.type === 'song') await fb.deleteDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'songs', itemToDelete.id));
+                  else if(itemToDelete.type === 'playlist') await fb.deleteDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'playlists', itemToDelete.id));
                   showToast("Eliminado"); setItemToDelete(null);
+                  setCurrentView('list');
               } catch(e) { showToast("Error al borrar", "error"); }
           };
 
@@ -301,38 +344,25 @@
               try {
                   await fb.signInWithPopup(fb.auth, fb.googleProvider);
                   setShowAuthModal(false);
-                  showToast("¡Sesión iniciada con Google!");
+                  showToast("¡Bienvenido!");
               } catch (e) { showToast("Error de conexión", "error"); }
           };
 
           const handleAuth = async () => {
               const cleanEmail = email.trim().toLowerCase();
-              if(!cleanEmail || pass.length < 6) return showToast("Min. 6 caracteres", "error");
+              if(!cleanEmail || pass.length < 6) return showToast("Credenciales inválidas", "error");
               try {
                   if(authMode === 'register') await fb.createUserWithEmailAndPassword(fb.auth, cleanEmail, pass);
                   else await fb.signInWithEmailAndPassword(fb.auth, cleanEmail, pass);
                   setShowAuthModal(false); showToast("¡Bienvenido!");
-              } catch(e) { 
-                  let msg = "Error en credenciales";
-                  if (e.code === 'auth/user-not-found') msg = "Usuario no registrado";
-                  if (e.code === 'auth/wrong-password') msg = "Contraseña incorrecta";
-                  if (e.code === 'auth/email-already-in-use') msg = "El email ya está en uso";
-                  if (e.code === 'auth/account-exists-with-different-credential') msg = "Usa Google para entrar";
-                  showToast(msg, "error"); 
-              }
-          };
-
-          const updatePlaylistSongs = async (newSongs) => {
-              if (!activePlaylistId) return;
-              await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', activePlaylistId), { songs: newSongs });
+              } catch(e) { showToast("Error en acceso", "error"); }
           };
 
           const insertBracket = (side) => {
               if (!textareaRef.current) return;
               const start = textareaRef.current.selectionStart;
               const end = textareaRef.current.selectionEnd;
-              const text = editLyrics;
-              setEditLyrics(text.substring(0, start) + (side === 'left' ? '[' : ']') + text.substring(end));
+              setEditLyrics(editLyrics.substring(0, start) + (side === 'left' ? '[' : ']') + editLyrics.substring(end));
               setTimeout(() => { textareaRef.current.focus(); textareaRef.current.setSelectionRange(start + 1, start + 1); }, 0);
           };
 
@@ -351,13 +381,17 @@
             </div>
           );
 
-          if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic uppercase tracking-widest text-center px-4 animate-pulse">PREPARANDO EL MINISTERIO...</div>;
+          const updatePlaylistSongs = async (newSongs) => {
+              await fb.updateDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'playlists', activePlaylistId), { songs: newSongs });
+          };
+
+          if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic uppercase text-center px-4 animate-pulse">CARGANDO MY CORARIO...</div>;
 
           return (
             <div className="min-h-screen transition-all">
               {toast && <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce bg-indigo-600 text-white text-xs tracking-widest uppercase`}>{toast.message}</div>}
 
-              {/* HEADER ACTUALIZADO */}
+              {/* HEADER */}
               <header className="sticky top-0 z-40 bg-indigo-700 dark:bg-slate-900 text-white p-4 shadow-xl print-hidden flex justify-between items-center text-white">
                 <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => {setCurrentView('list'); setIsScrolling(false);}}>
                     <Icon name="music" size={30} />
@@ -368,7 +402,7 @@
                         <Icon name={isDarkMode ? "sun" : "moon"} size={22} className="text-white" />
                     </button>
                     {user && !user.isAnonymous ? (
-                        <button onClick={() => fb.signOut(fb.auth)} className="w-12 h-12 rounded-2xl border-2 border-white/20 overflow-hidden bg-indigo-500 shadow-md">
+                        <button onClick={() => fb.signOut(fb.auth)} className="w-12 h-12 rounded-2xl border-2 border-white/20 overflow-hidden bg-indigo-50 shadow-md">
                             <img src={user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`} className="w-full h-full object-cover" />
                         </button>
                     ) : (
@@ -390,16 +424,16 @@
                                 <div className="flex gap-4 mb-10 search-bar">
                                     <div className="relative flex-1">
                                         <Icon name="search" className="absolute left-4 top-3.5 opacity-60 text-slate-950 dark:text-white" />
-                                        <input type="text" placeholder="Buscar título o artista..." className="w-full pl-12 pr-8 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-slate-950 dark:text-white text-xl shadow-sm" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
+                                        <input type="text" placeholder="Buscar título o artista..." className="w-full pl-12 pr-8 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-slate-950 dark:text-white text-xl shadow-sm shadow-inner font-bold" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
                                     </div>
                                     <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-2xl text-white"><Icon name="plus" size={28} /></button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {songs.filter(s => (s.title || '').toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
                                         <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-5 song-card rounded-[32px] cursor-pointer flex justify-between items-center group transition-all hover:scale-[1.02] text-left relative overflow-hidden shadow-inner">
-                                            <div className="overflow-hidden pr-4 flex-1 text-left">
+                                            <div className="overflow-hidden pr-4 flex-1">
                                                 <h3 className="font-black text-xl uppercase truncate text-vibrant-day">{s.title}</h3>
-                                                <p className="text-xs font-bold mt-1 opacity-60 uppercase tracking-[0.1em] text-vibrant-day">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
+                                                <p className="text-xs font-bold mt-1 opacity-60 uppercase tracking-[0.1em] text-vibrant-day font-bold">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
                                             </div>
                                             <button onClick={(e) => { e.stopPropagation(); setItemToDelete({type:'song', id: s.id}); }} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"><Icon name="trash-2" size={18} /></button>
                                         </div>
@@ -480,7 +514,7 @@
                                 <h2 className="text-8xl font-black uppercase tracking-tighter italic text-vibrant-day leading-tight">{activePlaylist.name}</h2>
                             </div>
                             <div className="flex flex-wrap gap-5 w-full md:w-auto">
-                                <button onClick={() => { const url = window.location.origin + window.location.pathname + '?share=' + activePlaylist.id; navigator.clipboard.writeText(url); showToast("Enlace copiado"); }} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-xl border-4 border-indigo-800 transition-all text-white text-white text-white" title="Compartir"><Icon name="share-2" size={32} /></button>
+                                <button onClick={handleShare} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-xl border-4 border-indigo-800 transition-all text-white text-white text-white" title="Compartir"><Icon name="share-2" size={32} /></button>
                                 <button onClick={() => setPlaylistMode(playlistMode === 'list' ? 'full' : 'list')} className={`flex-1 md:flex-none btn-3d px-12 py-6 rounded-[40px] font-black text-sm tracking-widest flex items-center justify-center gap-4 shadow-2xl transition-all bg-indigo-600 text-white border-indigo-800 text-white text-white text-white text-white text-white font-bold`}>
                                     <Icon name={playlistMode === 'list' ? "eye" : "settings"} size={28} /> {playlistMode === 'list' ? "PRESENTACIÓN" : "MODO GESTIÓN"}
                                 </button>
@@ -494,8 +528,8 @@
                                     const s = songs.find(x => x.id === sid);
                                     if (!s) return null;
                                     return (
-                                        <div key={idx} draggable="true" onDragStart={(e) => {setDraggedItemIndex(idx); setIsDragging(true);}} onDragOver={(e) => {e.preventDefault(); if(draggedItemIndex!==idx){ const news=[...(activePlaylist.songs||[])]; const itm=news.splice(draggedItemIndex,1)[0]; news.splice(idx,0,itm); setDraggedItemIndex(idx); updatePlaylistSongs(news); }}} onDragEnd={() => setIsDragging(false)} className={`flex items-center p-8 song-card rounded-[40px] border-4 transition-all text-left cursor-move ${draggedItemIndex === idx ? 'dragging' : ''}`}>
-                                            <div className="w-14 h-14 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 flex items-center justify-center font-black text-2xl mr-6 shadow-inner font-bold">{idx+1}</div>
+                                        <div key={idx} draggable="true" onDragStart={(e) => {setDraggedItemIndex(idx); setIsDragging(true);}} onDragOver={(e) => {e.preventDefault(); if(draggedItemIndex!==idx){ const news=[...(activePlaylist.songs||[])]; const itm=news.splice(draggedItemIndex,1)[0]; news.splice(idx,0,itm); setDraggedItemIndex(idx); updatePlaylistSongs(news); }}} onDragEnd={() => setIsDragging(false)} className={`flex items-center p-8 song-card rounded-[40px] border-4 transition-all text-left cursor-move shadow-inner ${draggedItemIndex === idx ? 'dragging' : ''}`}>
+                                            <div className="w-14 h-14 rounded-full bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 flex items-center justify-center font-black text-2xl mr-6 font-bold">{idx+1}</div>
                                             <div className="flex-1 cursor-pointer truncate pr-4 text-left font-bold" onClick={() => {setActiveSongId(s.id); setCurrentView('view')}}>
                                                 <h4 className="font-black text-2xl uppercase text-vibrant-day leading-tight">{s.title}</h4>
                                                 <p className="text-sm opacity-60 font-black tracking-widest text-vibrant-day font-bold">[{s.musicalKey || 'G'}] • {s.artist}</p>
@@ -518,7 +552,6 @@
                                             <div className="mb-24 border-b-[15px] border-indigo-600/10 pb-12 flex items-end gap-12 text-vibrant-day">
                                                 <span className="text-[18rem] font-black text-indigo-600 leading-none -mb-16 select-none font-bold">{idx + 1}</span>
                                                 <div className="flex-1 pb-8 text-left text-vibrant-day">
-                                                    {/* FORZADO text-slate-950 PARA MODO CLARO */}
                                                     <h3 className={`text-8xl sm:text-[11rem] font-black leading-none mb-10 tracking-tighter uppercase italic text-slate-950 dark:text-white ${fontStyle}`}>{s.title}</h3>
                                                     <div className="flex flex-wrap items-center gap-6 opacity-80 font-black text-4xl tracking-widest uppercase mb-10 text-slate-950 dark:text-white font-bold">
                                                       <span>TONO: [{s.musicalKey}]</span><span className="opacity-50 text-indigo-400">•</span><span>{s.artist}</span>
@@ -554,21 +587,23 @@
                             </div>
                         </div>
                         <div className="space-y-10">
-                            <input type="text" placeholder="Título..." className="w-full p-10 rounded-[48px] bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-2xl dark:text-white transition-all text-slate-950 font-bold shadow-inner" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
+                            {/* CORRECCIÓN: Inputs con colores claros forzados (text-slate-900 dark:text-white) */}
+                            <input type="text" placeholder="Título..." className="w-full p-10 rounded-[48px] bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-2xl text-slate-900 dark:text-white transition-all font-bold shadow-inner" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-                                <input type="text" placeholder="Compositor..." className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-700 font-black text-xl text-slate-950 dark:text-white font-bold shadow-inner" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
-                                <input type="text" placeholder="Tono..." className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-700 font-black text-xl text-slate-950 dark:text-white font-bold shadow-inner" value={editKey} onChange={e=>setEditKey(e.target.value)} />
+                                <input type="text" placeholder="Compositor..." className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-700 font-black text-xl text-slate-900 dark:text-white font-bold shadow-inner" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
+                                <input type="text" placeholder="Tono..." className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-700 font-black text-xl text-slate-900 dark:text-white font-bold shadow-inner" value={editKey} onChange={e=>setEditKey(e.target.value)} />
                             </div>
                             <div className="flex flex-col sm:flex-row gap-4">
-                                <button onClick={() => { if(!editLyrics) return; const lines = editLyrics.split('\n'); let res = []; const cr = /^([A-G]|Do|Re|Mi|Fa|Sol|La|Si)[#b]?(m|maj|min|dim|aug|sus|add|[0-9]|[-+()/#])*$/i; for(let i=0; i<lines.length; i++){ const c = lines[i]; const n = lines[i+1]; const words = c.trim().split(/\s+/); if(words.length>0 && words.every(w=>cr.test(w)) && n){ let m = n.split(''); let o = 0; const rg = /([^\s]+)/g; let mt; while((mt=rg.exec(c))!==null){ const pos = Math.min(mt.index+o, m.length); const tag = `[${mt[0]}]`; m.splice(pos,0,tag); o+=tag.length; } res.push(m.join('')); i++; } else res.push(c); } setEditLyrics(res.join('\n')); showToast("Vinculados"); }} className="flex-1 py-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-[40px] font-black text-2xl tracking-[0.2em] border-4 border-indigo-600 flex items-center justify-center gap-5 hover:bg-indigo-100 transition-all btn-3d btn-3d-secondary shadow-xl uppercase font-bold text-left">
+                                <button onClick={linkChordsManually} className="flex-1 py-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-400 rounded-[40px] font-black text-2xl tracking-[0.2em] border-4 border-indigo-600 flex items-center justify-center gap-5 hover:bg-indigo-100 transition-all btn-3d btn-3d-secondary shadow-xl uppercase font-bold text-left">
                                     <Icon name="wand-2" size={40} /> VINCULAR ACORDES
                                 </button>
                                 <div className="flex gap-4">
                                     <button onClick={() => insertBracket('left')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black text-indigo-600 text-center pb-2 font-bold">[</button>
-                                    <button onClick={() => insertBracket('right')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black text-center pb-2 font-bold">]</button>
+                                    <button onClick={() => insertBracket('right')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black text-indigo-600 text-center pb-2 font-bold">]</button>
                                 </div>
                             </div>
-                            <textarea ref={textareaRef} placeholder="Pega letra con [Acordes]..." className="w-full h-[700px] p-12 rounded-[80px] bg-white dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 font-mono text-2xl font-bold outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar shadow-inner text-slate-950 font-bold" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
+                            {/* CORRECCIÓN: Textarea con colores claros forzados (text-slate-900 dark:text-white) */}
+                            <textarea ref={textareaRef} placeholder="Pega letra con acordes encima..." className="w-full h-[700px] p-12 rounded-[80px] bg-white dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 font-mono text-2xl font-bold outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar shadow-inner text-slate-900 dark:text-white font-bold" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
                         </div>
                     </div>
                 )}
@@ -580,8 +615,8 @@
                     <div className="flex items-center gap-2 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-full shadow-2xl border-2 border-slate-950 dark:border-slate-700 transition-all animate-in text-slate-950">
                         <button onClick={()=>setBpm(b=>Math.max(40, b-5))} className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full btn-3d btn-3d-secondary shadow-sm text-slate-950 dark:text-white text-xs font-black">-</button>
                         <div className="flex flex-col items-center px-2 min-w-[50px] text-center font-bold">
-                            <span className="font-black text-indigo-600 text-sm leading-none font-bold">{bpm}</span>
-                            <span className="text-[8px] font-black opacity-60 dark:text-white uppercase tracking-tighter font-bold">BPM</span>
+                            <span className="font-black text-indigo-600 text-sm leading-none">{bpm}</span>
+                            <span className="text-[8px] font-black opacity-60 dark:text-white uppercase tracking-tighter">BPM</span>
                         </div>
                         <button onClick={()=>setBpm(b=>Math.min(240, b+5))} className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full btn-3d btn-3d-secondary shadow-sm text-slate-950 dark:text-white text-xs font-black">+</button>
                         <button onClick={()=>setIsMetronomePlaying(!isMetronomePlaying)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${isMetronomePlaying?'bg-red-500':'bg-emerald-600'} text-white`}>
