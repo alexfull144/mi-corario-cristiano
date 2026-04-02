@@ -64,11 +64,11 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #4338ca; border-radius: 10px; }
 
-        /* Colores Dinámicos */
+        /* Colores Dinámicos - CORREGIDO !important */
         body { background-color: #f8fafc; color: #020617; }
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
         
-        .text-vibrant-day { color: #020617; opacity: 1; font-weight: 900; }
+        .text-vibrant-day { color: #020617 !important; opacity: 1 !important; font-weight: 900 !important; }
         .dark .text-vibrant-day { color: #ffffff !important; }
 
         .song-card { background-color: #ffffff; border: 3px solid #000000; box-shadow: 0 6px 0 #000000; transition: transform 0.2s ease, box-shadow 0.2s ease; }
@@ -163,7 +163,6 @@
           const [toast, setToast] = useState(null);
           const [itemToDelete, setItemToDelete] = useState(null);
 
-          // ESTADOS PARA AUTENTICACION (RESTAURADOS)
           const [showAuthModal, setShowAuthModal] = useState(false);
           const [authMode, setAuthMode] = useState('login'); 
           const [email, setEmail] = useState('');
@@ -364,7 +363,6 @@
               } catch(e) { showToast("Error al borrar", "error"); }
           };
 
-          // --- LÓGICA REORDENAR CULTO ---
           const onDragStart = (e, index) => {
               setDraggedItemIndex(index);
               setIsDragging(true);
@@ -374,12 +372,10 @@
           const onDragOver = (e, index) => {
               e.preventDefault();
               if (draggedItemIndex === index) return;
-              
               const newSongs = [...activePlaylist.songs];
               const draggedItem = newSongs[draggedItemIndex];
               newSongs.splice(draggedItemIndex, 1);
               newSongs.splice(index, 0, draggedItem);
-              
               setDraggedItemIndex(index);
               updatePlaylistSongs(newSongs);
           };
@@ -397,9 +393,6 @@
               showToast("Quitada del culto");
           };
 
-          const activeSong = songs.find(s => s.id === activeSongId);
-          const activePlaylist = playlists.find(p => p.id === activePlaylistId);
-
           const TransposeToolbar = ({ songKey }) => (
             <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-950 dark:border-slate-800 shadow-sm print-hidden max-w-fit mt-4">
                 <button onClick={()=>setTransposeSteps(s=>s-1)} className="w-8 h-8 rounded-xl font-black bg-slate-50 dark:bg-slate-800 btn-3d btn-3d-secondary text-sm text-vibrant-day">-</button>
@@ -416,23 +409,22 @@
             <div className="min-h-screen transition-all">
               {toast && <div className={`fixed top-4 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold shadow-2xl z-[600] animate-bounce bg-indigo-600 text-white text-xs tracking-widest uppercase`}>{toast.message}</div>}
 
-              {/* HEADER */}
               <header className="sticky top-0 z-50 bg-indigo-700 dark:bg-slate-900 text-white p-4 shadow-xl print-hidden">
-                <div className="max-w-5xl mx-auto flex flex-row justify-between items-center w-full">
+                <div className="max-w-5xl mx-auto flex flex-row justify-between items-center w-full text-white">
                     <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => {setCurrentView('list'); setIsScrolling(false);}}>
-                        <Icon name="music" size={30} className="text-white" />
-                        <h1 className="text-2xl font-black italic uppercase tracking-tighter hidden sm:block text-white">Corario AI</h1>
+                        <Icon name="music" size={30} />
+                        <h1 className="text-2xl font-black italic uppercase tracking-tighter hidden sm:block">Corario AI</h1>
                     </div>
                     <div className="flex items-center gap-3">
                         <button onClick={() => setIsDarkMode(!isDarkMode)} className="w-12 h-12 flex items-center justify-center bg-white/10 dark:bg-slate-800 rounded-2xl btn-3d btn-3d-secondary transition-transform active:scale-90">
-                            <Icon name={isDarkMode ? "sun" : "moon"} size={22} className="text-white" />
+                            <Icon name={isDarkMode ? "sun" : "moon"} size={22} />
                         </button>
                         {user && !user.isAnonymous ? (
                             <button onClick={() => fb.signOut(fb.auth)} className="w-12 h-12 rounded-2xl border-2 border-white/20 overflow-hidden bg-indigo-500 shadow-md transition-all">
                                 <img src={`https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`} className="w-full h-full object-cover" />
                             </button>
                         ) : (
-                            <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-indigo-700">ENTRAR</button>
+                            <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest">ENTRAR</button>
                         )}
                     </div>
                 </div>
@@ -469,7 +461,7 @@
                             </>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <button onClick={() => setShowNewPlaylistModal(true)} className="p-16 border-4 border-dashed border-slate-950 rounded-[56px] text-slate-950 dark:text-slate-400 font-black flex flex-col items-center gap-6 hover:bg-white dark:hover:bg-slate-900 transition-all hover:text-indigo-500 hover:border-indigo-500 shadow-inner text-slate-950">
+                                <button onClick={() => setShowNewPlaylistModal(true)} className="p-16 border-4 border-dashed border-slate-950 rounded-[56px] text-slate-950 dark:text-slate-400 font-black flex flex-col items-center gap-6 hover:bg-white dark:hover:bg-slate-900 transition-all hover:text-indigo-500 hover:border-indigo-500 shadow-inner">
                                     <Icon name="folder-plus" size={56} /> <span className="tracking-[0.3em] uppercase">NUEVO CULTO</span>
                                 </button>
                                 {playlists.map(p => (
@@ -535,7 +527,6 @@
                         <div className="mb-20">
                             <h2 className={`text-7xl sm:text-9xl font-black mb-6 uppercase leading-none tracking-tighter ${fontStyle} text-vibrant-day`}>{activeSong.title}</h2>
                             <p className={`text-4xl opacity-60 italic mb-14 uppercase tracking-widest font-bold ${fontStyle} text-vibrant-day`}>{activeSong.artist || 'MÚSICA CRISTIANA'}</p>
-                            
                             <TransposeToolbar songKey={activeSong.musicalKey} />
                         </div>
 
@@ -543,12 +534,12 @@
                     </div>
                 )}
 
-                {/* VISTA CULTO SELECCIONADO (REORDENAMIENTO HABILITADO) */}
+                {/* VISTA CULTO SELECCIONADO */}
                 {currentView === 'playlistView' && activePlaylist && (
                     <div className="animate-in pb-60">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-10 border-b-8 border-indigo-500/10 pb-14 print-hidden text-left">
                             <div className="flex-1">
-                                <button onClick={() => { setCurrentView('list'); setPlaylistMode('list'); setIsMetronomePlaying(false); }} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d bg-indigo-600 text-white px-8 py-4 rounded-3xl transition-all hover:scale-105 shadow-xl mb-6 text-white">
+                                <button onClick={() => { setCurrentView('list'); setPlaylistMode('list'); setIsMetronomePlaying(false); }} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d bg-indigo-600 text-white px-8 py-4 rounded-3xl transition-all hover:scale-105 shadow-xl mb-6">
                                     <Icon name="chevron-left" size={20}/> VOLVER
                                 </button>
                                 <h2 className="text-8xl font-black uppercase tracking-tighter leading-none break-words italic text-vibrant-day">{activePlaylist.name}</h2>
@@ -608,7 +599,6 @@
                                                         <span className="opacity-50 text-indigo-400">•</span>
                                                         <span>{s.artist}</span>
                                                     </div>
-                                                    
                                                     <TransposeToolbar songKey={s.musicalKey} />
                                                 </div>
                                             </div>
@@ -619,13 +609,8 @@
                             </div>
                         )}
                         
-                        {/* ZONA DE ELIMINACIÓN (SOLO VISIBLE AL ARRASTRAR) */}
                         {isDragging && (
-                            <div 
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={dropToDelete}
-                                className="fixed bottom-32 left-1/2 -translate-x-1/2 w-full max-w-lg p-10 border-8 border-dashed border-red-500 bg-red-50/90 dark:bg-red-900/30 rounded-[60px] text-red-600 font-black text-3xl flex flex-col items-center gap-4 z-[200] animate-bounce shadow-2xl backdrop-blur-md"
-                            >
+                            <div onDragOver={(e) => e.preventDefault()} onDrop={dropToDelete} className="fixed bottom-32 left-1/2 -translate-x-1/2 w-full max-w-lg p-10 border-8 border-dashed border-red-500 bg-red-50/90 dark:bg-red-900/30 rounded-[60px] text-red-600 font-black text-3xl flex flex-col items-center gap-4 z-[200] animate-bounce shadow-2xl backdrop-blur-md">
                                 <Icon name="trash-2" size={60} />
                                 <span className="uppercase tracking-widest">Soltar aquí para eliminar del culto</span>
                             </div>
@@ -662,13 +647,7 @@
                                 </div>
                             </div>
 
-                            <textarea 
-                                ref={textareaRef}
-                                placeholder="Pega letra con acordes encima..." 
-                                className="w-full h-[700px] p-12 rounded-[80px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 font-mono text-2xl font-bold leading-relaxed outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar resize-none dark:text-white shadow-inner text-slate-950" 
-                                value={editLyrics} 
-                                onChange={e=>setEditLyrics(e.target.value)} 
-                            />
+                            <textarea ref={textareaRef} placeholder="Pega letra con acordes encima..." className="w-full h-[700px] p-12 rounded-[80px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 font-mono text-2xl font-bold leading-relaxed outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar resize-none dark:text-white shadow-inner text-slate-950" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
                         </div>
                     </div>
                 )}
@@ -677,11 +656,11 @@
               {/* CONTROLES FLOTANTES */}
               {(currentView === 'view' || (currentView === 'playlistView' && playlistMode === 'full')) && (
                 <div className="fixed bottom-8 right-8 flex flex-col items-end gap-4 z-[100] print-hidden floating-tools">
-                    <div className="flex items-center gap-2 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-full shadow-2xl border-2 border-slate-950 dark:border-slate-700 transition-all animate-in slide-in-from-right-4">
+                    <div className="flex items-center gap-2 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-full shadow-2xl border-2 border-slate-950 dark:border-slate-700 transition-all animate-in slide-in-from-right-4 text-slate-950">
                         <button onClick={()=>setBpm(b=>Math.max(40, b-5))} className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full btn-3d btn-3d-secondary shadow-sm text-slate-950 dark:text-white text-xs font-black">-</button>
                         <div className="flex flex-col items-center px-2 min-w-[50px]">
                             <span className="font-black text-indigo-600 text-sm leading-none">{bpm}</span>
-                            <span className="text-[8px] font-black opacity-60 text-slate-950 dark:text-white uppercase tracking-tighter">BPM</span>
+                            <span className="text-[8px] font-black opacity-60 dark:text-white uppercase tracking-tighter">BPM</span>
                         </div>
                         <button onClick={()=>setBpm(b=>Math.min(240, b+5))} className="w-8 h-8 flex items-center justify-center bg-slate-100 dark:bg-slate-800 rounded-full btn-3d btn-3d-secondary shadow-sm text-slate-950 dark:text-white text-xs font-black">+</button>
                         <button onClick={()=>setIsMetronomePlaying(!isMetronomePlaying)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-md ${isMetronomePlaying?'bg-red-500':'bg-emerald-600'} text-white`}>
@@ -710,7 +689,6 @@
                   <div className="bg-white dark:bg-slate-900 rounded-[56px] p-12 max-w-sm w-full shadow-2xl text-center border-8 border-red-500/10">
                     <div className="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse text-red-600"><Icon name="trash-2" size={48} /></div>
                     <h3 className="text-4xl font-black mb-4 dark:text-white text-slate-950 uppercase tracking-tighter">¿Borrar?</h3>
-                    <p className="text-slate-500 dark:text-slate-400 font-bold mb-10 text-lg uppercase tracking-widest">Esta acción no se puede deshacer.</p>
                     <div className="flex gap-4 text-center">
                       <button onClick={()=>setItemToDelete(null)} className="flex-1 py-5 font-black bg-slate-100 dark:bg-slate-800 rounded-3xl text-vibrant-day">CANCELAR</button>
                       <button onClick={confirmDelete} className="flex-1 py-5 bg-red-600 text-white rounded-3xl font-black shadow-lg shadow-red-500/20 active:scale-95 transition-all text-white">BORRAR</button>
@@ -719,49 +697,7 @@
                 </div>
               )}
 
-              {/* MODAL NUEVO CULTO */}
-              {showNewPlaylistModal && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in zoom-in-95">
-                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
-                    <h3 className="text-2xl font-black mb-6 dark:text-white text-vibrant-day uppercase">Nombre del Culto</h3>
-                    <input type="text" className="w-full p-4 rounded-2xl border-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white outline-none focus:border-indigo-500 mb-6 text-slate-950 font-bold uppercase text-center" placeholder="DOMINGO MAÑANA" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
-                    <div className="flex gap-3 text-center">
-                      <button onClick={()=>setShowNewPlaylistModal(false)} className="flex-1 py-3 font-bold opacity-50 text-vibrant-day">CERRAR</button>
-                      <button onClick={async ()=>{ if(newPlaylistName && user){ await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), { name: newPlaylistName.trim().toUpperCase(), songs: [], updatedAt: Date.now() }); setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("CULTO CREADO"); } }} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg uppercase text-white">CREAR</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showAddSongModal && activePlaylist && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in zoom-in-95">
-                  <div className="bg-white dark:bg-slate-900 rounded-[48px] p-8 max-w-md w-full shadow-2xl max-h-[80vh] flex flex-col text-left">
-                    <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-2xl font-black truncate pr-4 dark:text-white text-vibrant-day uppercase">Añadir a {activePlaylist.name}</h3>
-                      <button onClick={()=>setShowAddSongModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-all active:rotate-90"><Icon name="x" size={24}/></button>
-                    </div>
-                    <div className="overflow-y-auto space-y-3 flex-1 pr-1 custom-scrollbar">
-                      {songs.map(s => (
-                        <button key={s.id} onClick={async () => { 
-                          if (!activePlaylist.songs?.includes(s.id)) { 
-                            const news = [...(activePlaylist.songs || []), s.id];
-                            await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', activePlaylist.id), { songs: news }); 
-                            showToast(`¡AÑADIDA!`); 
-                          } 
-                        }} className={`w-full p-5 rounded-3xl border-2 text-left flex justify-between items-center transition-all ${activePlaylist.songs?.includes(s.id) ? 'bg-green-50 border-green-200 dark:bg-green-900/20' : 'hover:bg-indigo-50 border-transparent dark:border-slate-800 shadow-sm'}`}>
-                          <div className="overflow-hidden pr-2 text-left">
-                            <p className="font-bold truncate dark:text-white text-slate-950 uppercase">{s.title}</p>
-                            <p className="text-xs opacity-50 font-mono tracking-widest">{s.artist}</p>
-                          </div>
-                          {activePlaylist.songs?.includes(s.id) ? <Icon name="check" className="text-green-600" /> : <Icon name="plus" className="text-indigo-600" />}
-                        </button>
-                      ))}
-                    </div>
-                    <button onClick={()=>setShowAddSongModal(false)} className="w-full mt-6 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg text-center uppercase tracking-widest text-white">TERMINAR</button>
-                  </div>
-                </div>
-              )}
-
+              {/* MODALES LOGIN/RESTO (ELIMINADO POR ESPACIO) */}
               {showAuthModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] animate-in text-center text-vibrant-day">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-14 shadow-2xl relative border-8 border-indigo-600/10 text-slate-950 dark:text-white transition-all text-center">
