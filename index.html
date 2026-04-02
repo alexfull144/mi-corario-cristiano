@@ -41,6 +41,7 @@
         }
         
         .btn-3d-secondary { box-shadow: 0 4px 0 #334155; border-color: #334155; }
+        .btn-3d-amber { box-shadow: 0 4px 0 #78350f; border-color: #78350f; }
 
         /* --- RENDERIZADO DE ACORDES --- */
         .chord-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem; min-height: 3em; }
@@ -67,6 +68,7 @@
         body { background-color: #f8fafc; color: #020617; }
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
         
+        /* Visibilidad del Título Crítica */
         .text-vibrant-day { color: #020617 !important; opacity: 1 !important; font-weight: 900 !important; }
         .dark .text-vibrant-day { color: #ffffff !important; }
 
@@ -167,6 +169,7 @@
           const [showAddSongModal, setShowAddSongModal] = useState(false);
           const [playlistMode, setPlaylistMode] = useState('list');
 
+          // Drag and Drop
           const [draggedItemIndex, setDraggedItemIndex] = useState(null);
           const [isDragging, setIsDragging] = useState(false);
 
@@ -180,8 +183,11 @@
 
           useEffect(() => {
             const unsub = fb.onAuthStateChanged(fb.auth, (u) => {
-              if (u) setUser(u);
-              else fb.signInAnonymously(fb.auth);
+              if (u) {
+                setUser(u);
+              } else {
+                fb.signInAnonymously(fb.auth);
+              }
               setLoading(false);
             });
             return () => unsub();
@@ -189,7 +195,6 @@
 
           useEffect(() => {
             if (!user) return;
-            // RULE 1: Sincronización por UID para guardar progreso
             const unsubS = fb.onSnapshot(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs'), (snap) => {
               setSongs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             });
@@ -297,13 +302,14 @@
               } catch(e) { showToast("Error al borrar", "error"); }
           };
 
+          // --- GOOGLE LOGIN ---
           const handleGoogleLogin = async () => {
               try {
                   await fb.signInWithPopup(fb.auth, fb.googleProvider);
                   setShowAuthModal(false);
                   showToast("¡Sesión iniciada con Google!");
               } catch (e) {
-                  showToast("Usa una red estable para Google", "error");
+                  showToast("Error de conexión", "error");
               }
           };
 
@@ -367,14 +373,14 @@
                             <img src={user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`} className="w-full h-full object-cover" />
                         </button>
                     ) : (
-                        <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest">ENTRAR</button>
+                        <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-indigo-700">ENTRAR</button>
                     )}
                 </div>
               </header>
 
               <main className="max-w-4xl mx-auto p-4 md:p-10">
                 {currentView === 'list' && (
-                    <div className="animate-in">
+                    <div className="animate-in text-center">
                         <div className="flex gap-4 mb-10 tabs-nav">
                             <button onClick={() => setActiveTab('songs')} className={`flex-1 py-5 rounded-[28px] font-black btn-3d transition-all tracking-widest ${activeTab === 'songs' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-slate-800 dark:text-white border-2 border-slate-950 text-slate-950'}`}>ALABANZAS</button>
                             <button onClick={() => setActiveTab('playlists')} className={`flex-1 py-5 rounded-[28px] font-black btn-3d transition-all tracking-widest ${activeTab === 'playlists' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-slate-800 dark:text-white border-2 border-slate-950 text-slate-950'}`}>CULTOS</button>
@@ -387,11 +393,11 @@
                                         <Icon name="search" className="absolute left-4 top-3.5 opacity-60 text-slate-950 dark:text-white" />
                                         <input type="text" placeholder="Buscar título o artista..." className="w-full pl-12 pr-8 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-slate-950 dark:text-white text-xl shadow-sm" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
                                     </div>
-                                    <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-2xl text-white text-white"><Icon name="plus" size={28} /></button>
+                                    <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-2xl text-white"><Icon name="plus" size={28} /></button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {songs.filter(s => (s.title || '').toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
-                                        <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-5 song-card rounded-[32px] cursor-pointer flex justify-between items-center group transition-all hover:scale-[1.02] text-left relative overflow-hidden">
+                                        <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-5 song-card rounded-[32px] cursor-pointer flex justify-between items-center group transition-all hover:scale-[1.02] text-left relative">
                                             <div className="overflow-hidden pr-4 flex-1">
                                                 <h3 className="font-black text-xl uppercase truncate text-vibrant-day">{s.title}</h3>
                                                 <p className="text-xs font-bold mt-1 opacity-60 uppercase tracking-[0.1em]">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
@@ -460,23 +466,23 @@
                             <TransposeToolbar songKey={activeSong.musicalKey} />
                         </div>
 
-                        <div className="pb-60 px-4 leading-[1.8] font-bold text-vibrant-day">{renderLyrics(activeSong.lyrics, transposeSteps)}</div>
+                        <div className="pb-60 px-4 leading-[1.8] font-bold text-vibrant-day" translate="no">{renderLyrics(activeSong.lyrics, transposeSteps)}</div>
                     </div>
                 )}
 
-                {/* VISTA CULTO (ORDENABLE) */}
+                {/* VISTA CULTO */}
                 {currentView === 'playlistView' && activePlaylist && (
-                    <div className="animate-in pb-60">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-10 border-b-8 border-indigo-500/10 pb-14 print-hidden text-left">
+                    <div className="animate-in pb-60 text-left">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-10 border-b-8 border-indigo-500/10 pb-14 print-hidden">
                             <div className="flex-1">
-                                <button onClick={() => { setCurrentView('list'); setPlaylistMode('list'); setIsMetronomePlaying(false); }} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d bg-indigo-600 text-white px-8 py-4 rounded-3xl transition-all hover:scale-105 shadow-xl mb-6 text-white text-white">
+                                <button onClick={() => { setCurrentView('list'); setPlaylistMode('list'); setIsMetronomePlaying(false); }} className="flex items-center gap-2 font-black uppercase text-sm tracking-widest btn-3d bg-indigo-600 text-white px-8 py-4 rounded-3xl transition-all hover:scale-105 shadow-xl mb-6 text-white">
                                     <Icon name="chevron-left" size={20}/> VOLVER
                                 </button>
                                 <h2 className="text-8xl font-black uppercase tracking-tighter italic text-vibrant-day leading-tight">{activePlaylist.name}</h2>
                             </div>
                             <div className="flex flex-wrap gap-5 w-full md:w-auto">
                                 <button onClick={() => { const url = window.location.origin + window.location.pathname + '?share=' + activePlaylist.id; navigator.clipboard.writeText(url); showToast("Enlace copiado"); }} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-xl border-4 border-indigo-800 transition-all text-white" title="Compartir"><Icon name="share-2" size={32} /></button>
-                                <button onClick={() => setPlaylistMode(playlistMode === 'list' ? 'full' : 'list')} className={`flex-1 md:flex-none btn-3d px-12 py-6 rounded-[40px] font-black text-sm tracking-widest flex items-center justify-center gap-4 shadow-2xl transition-all bg-indigo-600 text-white border-indigo-800 text-white text-white`}>
+                                <button onClick={() => setPlaylistMode(playlistMode === 'list' ? 'full' : 'list')} className={`flex-1 md:flex-none btn-3d px-12 py-6 rounded-[40px] font-black text-sm tracking-widest flex items-center justify-center gap-4 shadow-2xl transition-all bg-indigo-600 text-white border-indigo-800 text-white`}>
                                     <Icon name={playlistMode === 'list' ? "eye" : "settings"} size={28} /> {playlistMode === 'list' ? "PRESENTACIÓN" : "MODO GESTIÓN"}
                                 </button>
                                 <button onClick={()=>setShowAddSongModal(true)} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-2xl border-4 border-indigo-800 text-white" title="Añadir Alabanza"><Icon name="plus" size={40}/></button>
@@ -513,13 +519,12 @@
                                             <div className="mb-24 border-b-[15px] border-indigo-600/10 pb-12 flex items-end gap-12 text-vibrant-day">
                                                 <span className="text-[18rem] font-black text-indigo-600 leading-none -mb-16 select-none">{idx + 1}</span>
                                                 <div className="flex-1 pb-8 text-left text-vibrant-day">
-                                                    {/* TITULO CON CONTRASTE FIJO text-slate-950 */}
                                                     <h3 className={`text-8xl sm:text-[11rem] font-black leading-none mb-10 tracking-tighter uppercase italic text-slate-950 dark:text-white ${fontStyle}`}>{s.title}</h3>
                                                     <div className="flex flex-wrap items-center gap-6 opacity-80 font-black text-4xl tracking-widest uppercase mb-10 text-slate-950 dark:text-white"><span>TONO: [{s.musicalKey}]</span><span className="opacity-50 text-indigo-400">•</span><span>{s.artist}</span></div>
                                                     <TransposeToolbar songKey={s.musicalKey} />
                                                 </div>
                                             </div>
-                                            <div className="text-7xl font-black leading-[2] text-vibrant-day text-left">{renderLyrics(s.lyrics, transposeSteps)}</div>
+                                            <div className="text-7xl font-black leading-[2] text-vibrant-day text-left" translate="no">{renderLyrics(s.lyrics, transposeSteps)}</div>
                                         </div>
                                     );
                                 })}
@@ -528,7 +533,7 @@
                         
                         {isDragging && (
                             <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => {e.preventDefault(); const news=[...(activePlaylist.songs||[])]; news.splice(draggedItemIndex,1); updatePlaylistSongs(news); setIsDragging(false); showToast("Quitada");}} className="fixed bottom-32 left-1/2 -translate-x-1/2 w-full max-w-lg p-10 border-8 border-dashed border-red-500 bg-red-50/90 dark:bg-red-900/30 rounded-[60px] text-red-600 font-black text-3xl flex flex-col items-center gap-4 z-[200] animate-bounce shadow-2xl backdrop-blur-md text-center uppercase tracking-widest">
-                                <Icon name="trash-2" size={60} /> Soltar para eliminar del culto
+                                <Icon name="trash-2" size={60} /> Soltar para eliminar
                             </div>
                         )}
                     </div>
@@ -536,8 +541,8 @@
 
                 {/* EDITOR */}
                 {currentView === 'edit' && (
-                    <div className="animate-in pb-20">
-                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-8 text-vibrant-day text-left">
+                    <div className="animate-in pb-20 text-left">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-8 text-vibrant-day">
                             <h2 className="text-6xl font-black uppercase italic leading-none">Editor</h2>
                             <div className="flex gap-4 w-full sm:w-auto">
                                 <button onClick={() => setCurrentView('list')} className="px-8 py-5 font-black uppercase text-sm tracking-widest hover:bg-slate-200 dark:hover:bg-slate-800 rounded-2xl transition-all">CANCELAR</button>
@@ -631,8 +636,8 @@
 
               {showNewPlaylistModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in zoom-in-95">
-                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center">
-                    <h3 className="text-2xl font-black mb-6 dark:text-white text-vibrant-day uppercase">Nombre del Culto</h3>
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center text-vibrant-day">
+                    <h3 className="text-2xl font-black mb-6 dark:text-white uppercase">Nombre del Culto</h3>
                     <input type="text" className="w-full p-4 rounded-2xl border-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white outline-none focus:border-indigo-500 mb-6 text-slate-950 font-bold uppercase text-center" placeholder="DOMINGO MAÑANA" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
                     <div className="flex gap-3 text-center">
                       <button onClick={()=>setShowNewPlaylistModal(false)} className="flex-1 py-3 font-bold opacity-50 text-vibrant-day">CERRAR</button>
