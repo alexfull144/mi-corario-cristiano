@@ -64,13 +64,12 @@
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #4338ca; border-radius: 10px; }
 
-        /* Colores Dinámicos (Corregido para permitir Paleta) */
+        /* Colores Dinámicos */
         body { background-color: #f8fafc; color: #020617; }
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
         
-        /* Eliminamos !important del color para que la paleta funcione */
         .text-vibrant-day { color: #020617; opacity: 1; font-weight: 900; }
-        .dark .text-vibrant-day { color: #ffffff; }
+        .dark .text-vibrant-day { color: #ffffff !important; }
 
         .song-card { background-color: #ffffff; border: 3px solid #000000; box-shadow: 0 6px 0 #000000; }
         .dark .song-card { background-color: #0f172a; border-color: #1e293b; box-shadow: 0 6px 0 #000000; }
@@ -133,7 +132,7 @@
           const [playlists, setPlaylists] = useState([]);
           const [loading, setLoading] = useState(true);
           
-          const APP_ID = "corario-pro-final-v46"; 
+          const APP_ID = "corario-pro-final-v45"; 
 
           const [currentView, setCurrentView] = useState('list'); 
           const [activeTab, setActiveTab] = useState('songs');
@@ -148,7 +147,6 @@
           const [bpm, setBpm] = useState(120);
           const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
           
-          // --- ESTADOS DE ESTILO ---
           const [showStylePanel, setShowStylePanel] = useState(false);
           const [fontStyle, setFontStyle] = useState('font-modern');
           const [lyricColor, setLyricColor] = useState('default');
@@ -227,7 +225,6 @@
             return () => clearInterval(interval);
           }, [isMetronomePlaying, bpm]);
 
-          // Mapeo de Colores para Paleta
           const lyricStyleMap = { 
             'default': isDarkMode ? '#f8fafc' : '#020617', 
             'blue': '#2563eb', 'emerald': '#059669', 'rose': '#e11d48', 'amber': '#d97706' 
@@ -271,7 +268,7 @@
                                 <span className="chord-top notranslate" style={{ fontSize: `${textSize*0.75}px`, color: chordStyleMap[chordColor] }}>
                                     {seg.chord ? transposeChord(seg.chord, steps) : '\u00A0'}
                                 </span>
-                                <span className="text-bottom notranslate" style={{ fontSize: `${textSize}px`, color: lyricStyleMap[lyricColor] }}>
+                                <span className="text-bottom notranslate text-vibrant-day" style={{ fontSize: `${textSize}px`, color: lyricStyleMap[lyricColor] }}>
                                     {seg.text || (seg.chord ? '\u00A0' : '')}
                                 </span>
                             </div>
@@ -344,7 +341,6 @@
           const activeSong = songs.find(s => s.id === activeSongId);
           const activePlaylist = playlists.find(p => p.id === activePlaylistId);
 
-          // --- COMPONENTE: BARRA DE TRANSPORTE SOLO (PARA LA HOJA) ---
           const TransposeToolbar = ({ songKey }) => (
             <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-950 dark:border-slate-800 shadow-sm print-hidden max-w-fit mt-4">
                 <button onClick={()=>setTransposeSteps(s=>s-1)} className="w-8 h-8 rounded-xl font-black bg-slate-50 dark:bg-slate-800 btn-3d btn-3d-secondary text-sm text-vibrant-day">-</button>
@@ -481,7 +477,6 @@
                             <h2 className={`text-7xl sm:text-9xl font-black mb-6 uppercase leading-none tracking-tighter ${fontStyle} text-vibrant-day`}>{activeSong.title}</h2>
                             <p className={`text-4xl opacity-60 italic mb-14 uppercase tracking-widest font-bold ${fontStyle} text-vibrant-day`}>{activeSong.artist || 'MÚSICA CRISTIANA'}</p>
                             
-                            {/* SOLO TRANSPORTE EN LA HOJA */}
                             <TransposeToolbar songKey={activeSong.musicalKey} />
                         </div>
 
@@ -520,7 +515,7 @@
                                                 <h4 className="font-black text-4xl uppercase tracking-tighter mb-2 text-vibrant-day">{s.title}</h4>
                                                 <p className="text-lg opacity-60 font-black tracking-widest text-slate-700 dark:text-indigo-300">[{s.musicalKey || 'G'}] • {s.artist}</p>
                                             </div>
-                                            <button onClick={async ()=>{ const news = activePlaylist.songs.filter(id => id !== sid); await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', activePlaylist.id), { songs: news }); }} className="p-5 text-red-500 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded-3xl"><Icon name="trash-2" size={32}/></button>
+                                            <button onClick={async ()=>{ const news = activePlaylist.songs.filter(id => id !== sid); await fb.updateDoc(fb.doc(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists', activePlaylist.id), { songs: news }); }} className="p-5 text-red-600 opacity-0 group-hover:opacity-100 transition-all hover:bg-red-50 dark:hover:bg-red-900/30 rounded-3xl"><Icon name="trash-2" size={32}/></button>
                                         </div>
                                     );
                                 })}
@@ -535,14 +530,13 @@
                                             <div className="mb-24 border-b-[15px] border-indigo-600/10 pb-12 flex items-end gap-12 text-vibrant-day">
                                                 <span className="text-[18rem] font-black text-indigo-600 leading-none -mb-16 select-none">{idx + 1}</span>
                                                 <div className="flex-1 pb-8 text-left text-vibrant-day">
-                                                    <h3 className={`text-8xl sm:text-[11rem] font-black dark:text-white leading-none mb-10 tracking-tighter uppercase italic text-vibrant-day ${fontStyle}`}>{s.title}</h3>
+                                                    <h3 className={`text-8xl sm:text-[11rem] font-black leading-none mb-6 tracking-tighter uppercase italic text-vibrant-day ${fontStyle}`}>{s.title}</h3>
                                                     <div className="flex flex-wrap items-center gap-6 opacity-80 font-black text-4xl tracking-widest uppercase mb-10">
                                                         <span>TONO: [{s.musicalKey}]</span>
                                                         <span className="opacity-50 text-indigo-400">•</span>
                                                         <span>{s.artist}</span>
                                                     </div>
                                                     
-                                                    {/* SOLO TRANSPORTE EN MODO PRESENTACIÓN */}
                                                     <TransposeToolbar songKey={s.musicalKey} />
                                                 </div>
                                             </div>
@@ -681,10 +675,10 @@
                             <button onClick={()=>setAuthMode('register')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='register'?'bg-indigo-600 text-white border-indigo-800':'text-vibrant-day opacity-40 border-transparent hover:opacity-70'}`}>REGISTRAR</button>
                         </div>
                         <div className="space-y-6">
-                            <input type="email" placeholder="EMAIL" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-950 text-vibrant-day transition-all text-left" value={email} onChange={e=>setEmail(e.target.value)} />
-                            <input type="password" placeholder="CONTRASEÑA" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-950 text-vibrant-day transition-all text-left" value={pass} onChange={e=>setPass(e.target.value)} />
-                            <button onClick={handleAuth} className="w-full py-8 bg-indigo-600 text-white rounded-[40px] font-black btn-3d shadow-xl uppercase tracking-[0.2em] text-lg transition-all text-center">{authMode === 'login' ? 'INICIAR SESIÓN' : 'CREAR MI CUENTA'}</button>
-                            <div className="flex items-center gap-4 py-4 opacity-30 text-vibrant-day"><div className="h-px bg-current flex-1"></div><span className="font-black text-xs uppercase">O CON</span><div className="h-px bg-current flex-1"></div></div>
+                            <input type="email" placeholder="EMAIL" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-200 dark:border-slate-700 font-black text-vibrant-day transition-all text-left" value={email} onChange={e=>setEmail(e.target.value)} />
+                            <input type="password" placeholder="CONTRASEÑA" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-200 dark:border-slate-700 font-black text-vibrant-day transition-all text-left" value={pass} onChange={e=>setPass(e.target.value)} />
+                            <button onClick={handleAuth} className="w-full py-8 bg-indigo-600 text-white rounded-[40px] font-black btn-3d shadow-xl uppercase tracking-[0.2em] text-lg transition-all text-center text-vibrant-day">{authMode === 'login' ? 'INICIAR SESIÓN' : 'CREAR MI CUENTA'}</button>
+                            <div className="flex items-center gap-4 py-4 opacity-30 text-vibrant-day text-center"><div className="h-px bg-current flex-1"></div><span className="font-black text-xs uppercase">O CON</span><div className="h-px bg-current flex-1"></div></div>
                             <button onClick={async () => { try { await fb.signInWithPopup(fb.auth, fb.googleProvider); setShowAuthModal(false); } catch(e) { showToast("Error con Google", "error"); } }} className="w-full py-6 bg-white dark:bg-slate-800 border-4 border-slate-950 rounded-3xl font-black text-sm flex items-center justify-center gap-4 btn-3d shadow-md transition-all text-vibrant-day text-center"><img src="https://www.google.com/favicon.ico" className="w-6 h-6" /> GOOGLE</button>
                         </div>
                     </div>
