@@ -68,7 +68,7 @@
         body { background-color: #f8fafc; color: #020617; }
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
         
-        /* Visibilidad del Título Crítica */
+        /* Visibilidad del Título Crítica: Forzado con !important */
         .text-vibrant-day { color: #020617 !important; opacity: 1 !important; font-weight: 900 !important; }
         .dark .text-vibrant-day { color: #ffffff !important; }
 
@@ -158,7 +158,6 @@
           const [toast, setToast] = useState(null);
           const [itemToDelete, setItemToDelete] = useState(null);
 
-          // Auth States
           const [showAuthModal, setShowAuthModal] = useState(false);
           const [authMode, setAuthMode] = useState('login'); 
           const [email, setEmail] = useState('');
@@ -169,7 +168,6 @@
           const [showAddSongModal, setShowAddSongModal] = useState(false);
           const [playlistMode, setPlaylistMode] = useState('list');
 
-          // Drag and Drop
           const [draggedItemIndex, setDraggedItemIndex] = useState(null);
           const [isDragging, setIsDragging] = useState(false);
 
@@ -192,7 +190,6 @@
 
           useEffect(() => {
             if (!user) return;
-            // Sincronización Nube - Tu progreso está a salvo con tu cuenta
             const unsubS = fb.onSnapshot(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'songs'), (snap) => {
               setSongs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
             });
@@ -365,7 +362,8 @@
             <div className="min-h-screen transition-all">
               {toast && <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-bold shadow-2xl z-[100] animate-bounce bg-indigo-600 text-white text-xs tracking-widest uppercase`}>{toast.message}</div>}
 
-              <header className="sticky top-0 z-50 bg-indigo-700 dark:bg-slate-900 text-white p-4 shadow-xl print-hidden flex justify-between items-center text-white">
+              {/* HEADER */}
+              <header className="sticky top-0 z-40 bg-indigo-700 dark:bg-slate-900 text-white p-4 shadow-xl print-hidden flex justify-between items-center text-white">
                 <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => {setCurrentView('list'); setIsScrolling(false);}}>
                     <Icon name="music" size={30} />
                     <h1 className="text-2xl font-black italic uppercase tracking-tighter hidden sm:block">Corario AI</h1>
@@ -379,14 +377,14 @@
                             <img src={user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`} className="w-full h-full object-cover" />
                         </button>
                     ) : (
-                        <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-indigo-700">ENTRAR</button>
+                        <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-widest">ENTRAR</button>
                     )}
                 </div>
               </header>
 
               <main className="max-w-4xl mx-auto p-4 md:p-10">
                 {currentView === 'list' && (
-                    <div className="animate-in">
+                    <div className="animate-in text-center">
                         <div className="flex gap-4 mb-10 tabs-nav">
                             <button onClick={() => setActiveTab('songs')} className={`flex-1 py-5 rounded-[28px] font-black btn-3d transition-all tracking-widest ${activeTab === 'songs' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-slate-800 dark:text-white border-2 border-slate-950 text-slate-950'}`}>ALABANZAS</button>
                             <button onClick={() => setActiveTab('playlists')} className={`flex-1 py-5 rounded-[28px] font-black btn-3d transition-all tracking-widest ${activeTab === 'playlists' ? 'bg-indigo-600 text-white shadow-xl' : 'bg-white dark:bg-slate-800 dark:text-white border-2 border-slate-950 text-slate-950'}`}>CULTOS</button>
@@ -399,12 +397,12 @@
                                         <Icon name="search" className="absolute left-4 top-3.5 opacity-60 text-slate-950 dark:text-white" />
                                         <input type="text" placeholder="Buscar título o artista..." className="w-full pl-12 pr-8 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-slate-950 dark:text-white text-xl shadow-sm" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
                                     </div>
-                                    <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-2xl text-white"><Icon name="plus" size={28} /></button>
+                                    <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-2xl text-white text-white text-white text-white"><Icon name="plus" size={28} /></button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     {songs.filter(s => (s.title || '').toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
-                                        <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-5 song-card rounded-[32px] cursor-pointer flex justify-between items-center group transition-all hover:scale-[1.02] text-left relative overflow-hidden">
-                                            <div className="overflow-hidden pr-4 flex-1">
+                                        <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-5 song-card rounded-[32px] cursor-pointer flex justify-between items-center group transition-all hover:scale-[1.02] text-left relative">
+                                            <div className="overflow-hidden pr-4 flex-1 text-left">
                                                 <h3 className="font-black text-xl uppercase truncate text-vibrant-day">{s.title}</h3>
                                                 <p className="text-xs font-bold mt-1 opacity-60 uppercase tracking-[0.1em]">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
                                             </div>
@@ -423,7 +421,7 @@
                                         <h3 className="text-4xl font-black uppercase italic text-vibrant-day pr-10 leading-tight">{p.name}</h3>
                                         <div className="flex items-center gap-2 text-indigo-600 mt-4 text-left">
                                             <Icon name="list-music" size={20}/>
-                                            <p className="text-sm font-black uppercase tracking-widest">{(p.songs || []).length} CANCIONES</p>
+                                            <p className="text-sm font-black uppercase tracking-widest text-indigo-600">{(p.songs || []).length} CANCIONES</p>
                                         </div>
                                         <button onClick={(e) => {e.stopPropagation(); setItemToDelete({type:'playlist', id: p.id}); }} className="absolute top-10 right-10 text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-2xl shadow-sm"><Icon name="trash-2" size={24}/></button>
                                     </div>
@@ -442,7 +440,7 @@
                             </button>
                             <div className="flex gap-2">
                                 <button className="p-4 bg-white dark:bg-slate-800 text-indigo-600 rounded-2xl btn-3d btn-3d-secondary shadow-lg" onClick={() => setShowStylePanel(!showStylePanel)} title="Paleta"><Icon name="palette" size={28}/></button>
-                                <button onClick={() => window.print()} className="p-4 bg-slate-800 text-white rounded-2xl btn-3d shadow-lg" title="Imprimir"><Icon name="printer" size={28}/></button>
+                                <button onClick={() => window.print()} className="p-4 bg-slate-800 text-white rounded-2xl btn-3d shadow-lg text-white" title="Imprimir"><Icon name="printer" size={28}/></button>
                                 <button onClick={() => { setEditTitle(activeSong.title); setEditArtist(activeSong.artist || ''); setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey || ''); setCurrentView('edit'); }} className="p-4 bg-indigo-600 text-white rounded-2xl btn-3d shadow-lg text-white" title="Editar"><Icon name="edit-3" size={28}/></button>
                             </div>
                         </div>
@@ -487,11 +485,11 @@
                                 <h2 className="text-8xl font-black uppercase tracking-tighter italic text-vibrant-day leading-tight">{activePlaylist.name}</h2>
                             </div>
                             <div className="flex flex-wrap gap-5 w-full md:w-auto">
-                                <button onClick={() => { const url = window.location.origin + window.location.pathname + '?share=' + activePlaylist.id; navigator.clipboard.writeText(url); showToast("Enlace copiado"); }} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-xl border-4 border-indigo-800 transition-all text-white text-white" title="Compartir"><Icon name="share-2" size={32} /></button>
-                                <button onClick={() => setPlaylistMode(playlistMode === 'list' ? 'full' : 'list')} className={`flex-1 md:flex-none btn-3d px-12 py-6 rounded-[40px] font-black text-sm tracking-widest flex items-center justify-center gap-4 shadow-2xl transition-all bg-indigo-600 text-white border-indigo-800 text-white text-white text-white text-white`}>
+                                <button onClick={() => { const url = window.location.origin + window.location.pathname + '?share=' + activePlaylist.id; navigator.clipboard.writeText(url); showToast("Enlace copiado"); }} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-xl border-4 border-indigo-800 transition-all text-white text-white text-white" title="Compartir"><Icon name="share-2" size={32} /></button>
+                                <button onClick={() => setPlaylistMode(playlistMode === 'list' ? 'full' : 'list')} className={`flex-1 md:flex-none btn-3d px-12 py-6 rounded-[40px] font-black text-sm tracking-widest flex items-center justify-center gap-4 shadow-2xl transition-all bg-indigo-600 text-white border-indigo-800 text-white text-white text-white text-white text-white`}>
                                     <Icon name={playlistMode === 'list' ? "eye" : "settings"} size={28} /> {playlistMode === 'list' ? "PRESENTACIÓN" : "MODO GESTIÓN"}
                                 </button>
-                                <button onClick={()=>setShowAddSongModal(true)} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-2xl border-4 border-indigo-800 text-white text-white" title="Añadir Alabanza"><Icon name="plus" size={40}/></button>
+                                <button onClick={()=>setShowAddSongModal(true)} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-2xl border-4 border-indigo-800 text-white text-white text-white" title="Añadir Alabanza"><Icon name="plus" size={40}/></button>
                             </div>
                         </div>
 
@@ -525,9 +523,13 @@
                                             <div className="mb-24 border-b-[15px] border-indigo-600/10 pb-12 flex items-end gap-12 text-vibrant-day">
                                                 <span className="text-[18rem] font-black text-indigo-600 leading-none -mb-16 select-none">{idx + 1}</span>
                                                 <div className="flex-1 pb-8 text-left text-vibrant-day">
-                                                    {/* FORZADO text-slate-950 PARA MODO CLARO */}
-                                                    <h3 className={`text-8xl sm:text-[11rem] font-black leading-none mb-10 tracking-tighter uppercase italic text-slate-950 dark:text-white ${fontStyle}`}>{s.title}</h3>
-                                                    <div className="flex flex-wrap items-center gap-6 opacity-80 font-black text-4xl tracking-widest uppercase mb-10 text-slate-950 dark:text-white"><span>TONO: [{s.musicalKey}]</span><span className="opacity-50 text-indigo-400">•</span><span>{s.artist}</span></div>
+                                                    {/* FORZADO text-vibrant-day (NEGRO EN CLARO, BLANCO EN OSCURO) */}
+                                                    <h3 className={`text-8xl sm:text-[11rem] font-black leading-none mb-10 tracking-tighter uppercase italic text-vibrant-day ${fontStyle}`}>{s.title}</h3>
+                                                    <div className="flex flex-wrap items-center gap-6 opacity-80 font-black text-4xl tracking-widest uppercase mb-10 text-vibrant-day">
+                                                        <span>TONO: [{s.musicalKey}]</span>
+                                                        <span className="opacity-50 text-indigo-400">•</span>
+                                                        <span>{s.artist}</span>
+                                                    </div>
                                                     <TransposeToolbar songKey={s.musicalKey} />
                                                 </div>
                                             </div>
@@ -553,7 +555,7 @@
                             <h2 className="text-6xl font-black uppercase italic leading-none">Editor</h2>
                             <div className="flex gap-4 w-full sm:w-auto">
                                 <button onClick={() => setCurrentView('list')} className="px-8 py-5 font-black uppercase text-sm tracking-widest hover:bg-slate-200 dark:hover:bg-slate-800 rounded-2xl transition-all">CANCELAR</button>
-                                <button onClick={handleSave} className="flex-1 btn-3d bg-indigo-600 text-white px-14 py-5 rounded-[32px] font-black text-xs flex items-center justify-center gap-4 shadow-2xl uppercase tracking-[0.2em] transition-all text-white text-white">
+                                <button onClick={handleSave} className="flex-1 btn-3d bg-indigo-600 text-white px-14 py-5 rounded-[32px] font-black text-xs flex items-center justify-center gap-4 shadow-2xl uppercase tracking-[0.2em] transition-all text-white text-white text-white">
                                     <Icon name="save" size={24}/> GUARDAR
                                 </button>
                             </div>
@@ -569,8 +571,8 @@
                                     <Icon name="wand-2" size={40} /> VINCULAR ACORDES
                                 </button>
                                 <div className="flex gap-4">
-                                    <button onClick={() => insertBracket('left')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black text-indigo-600 text-center pb-2">[</button>
-                                    <button onClick={() => insertBracket('right')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black text-indigo-600 text-center pb-2">]</button>
+                                    <button onClick={() => insertBracket('left')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black text-indigo-600 text-center pb-2 text-indigo-600">[</button>
+                                    <button onClick={() => insertBracket('right')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black text-indigo-600 text-center pb-2 text-indigo-600">]</button>
                                 </div>
                             </div>
                             <textarea ref={textareaRef} placeholder="Pega letra con [Acordes]..." className="w-full h-[700px] p-12 rounded-[80px] bg-slate-50 dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 font-mono text-2xl font-bold outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar resize-none dark:text-white shadow-inner text-slate-950" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
@@ -601,7 +603,7 @@
                                 <button className="p-3 bg-slate-100 dark:bg-slate-700 rounded-full shadow-sm text-slate-950 dark:text-white" onClick={() => setScrollSpeed(s => Math.min(10, s+1))}><Icon name="fast-forward" size={18}/></button>
                             </div>
                         )}
-                        <button onClick={() => setIsScrolling(!isScrolling)} className={`p-6 rounded-full text-white shadow-xl transition-all active:scale-95 ${isScrolling ? 'bg-red-500' : 'bg-indigo-600'} text-white text-white text-white`}><Icon name={isScrolling ? "pause" : "play"} size={32} /></button>
+                        <button onClick={() => setIsScrolling(!isScrolling)} className={`p-6 rounded-full text-white shadow-xl transition-all active:scale-95 ${isScrolling ? 'bg-red-500' : 'bg-indigo-600'} text-white text-white text-white text-white text-white`}><Icon name={isScrolling ? "pause" : "play"} size={32} /></button>
                     </div>
                 </div>
               )}
@@ -612,13 +614,13 @@
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-14 shadow-2xl relative border-8 border-indigo-600/10 text-slate-950 dark:text-white transition-all text-center">
                         <button onClick={()=>setShowAuthModal(false)} className="absolute top-8 right-8 p-3 opacity-30 hover:opacity-100 text-vibrant-day"><Icon name="x" size={32}/></button>
                         <div className="flex gap-4 mb-10 text-center">
-                            <button onClick={()=>setAuthMode('login')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='login'?'bg-indigo-600 text-white border-indigo-800 text-white':'text-vibrant-day opacity-40 border-transparent hover:opacity-70'}`}>ENTRAR</button>
-                            <button onClick={()=>setAuthMode('register')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='register'?'bg-indigo-600 text-white border-indigo-800 text-white':'text-vibrant-day opacity-40 border-transparent hover:opacity-70'}`}>REGISTRAR</button>
+                            <button onClick={()=>setAuthMode('login')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='login'?'bg-indigo-600 text-white border-indigo-800 text-white text-white':'text-vibrant-day opacity-40 border-transparent hover:opacity-70'}`}>ENTRAR</button>
+                            <button onClick={()=>setAuthMode('register')} className={`flex-1 py-4 font-black rounded-3xl border-4 transition-all ${authMode==='register'?'bg-indigo-600 text-white border-indigo-800 text-white text-white':'text-vibrant-day opacity-40 border-transparent hover:opacity-70'}`}>REGISTRAR</button>
                         </div>
                         <div className="space-y-6">
                             <input type="email" placeholder="EMAIL" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-200 dark:border-slate-700 font-black text-vibrant-day transition-all text-left uppercase text-slate-950 shadow-inner" value={email} onChange={e=>setEmail(e.target.value)} />
                             <input type="password" placeholder="CONTRASEÑA" className="w-full p-6 bg-slate-100 dark:bg-slate-800 rounded-3xl outline-none border-4 border-slate-200 dark:border-slate-700 font-black text-vibrant-day transition-all text-left uppercase text-slate-950 shadow-inner" value={pass} onChange={e=>setPass(e.target.value)} />
-                            <button onClick={handleAuth} className="w-full py-8 bg-indigo-600 text-white rounded-[40px] font-black btn-3d shadow-xl uppercase tracking-[0.2em] text-lg transition-all text-center text-white text-white text-white">
+                            <button onClick={handleAuth} className="w-full py-8 bg-indigo-600 text-white rounded-[40px] font-black btn-3d shadow-xl uppercase tracking-[0.2em] text-lg transition-all text-center text-white text-white text-white text-white">
                                 {authMode === 'login' ? 'INICIAR SESIÓN' : 'CREAR MI CUENTA'}
                             </button>
                             <div className="flex items-center gap-4 py-4 opacity-30 text-vibrant-day text-center uppercase"><div className="h-px bg-current flex-1"></div><span className="font-black text-xs uppercase">O CON</span><div className="h-px bg-current flex-1"></div></div>
@@ -633,11 +635,11 @@
               {itemToDelete && (
                 <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-6 z-[1000] animate-in zoom-in-95">
                   <div className="bg-white dark:bg-slate-900 rounded-[56px] p-12 max-w-sm w-full shadow-2xl text-center border-8 border-red-500/10 text-vibrant-day">
-                    <div className="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse text-red-600"><Icon name="trash-2" size={48} /></div>
+                    <div className="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse text-red-600 text-red-600 text-red-600"><Icon name="trash-2" size={48} /></div>
                     <h3 className="text-4xl font-black mb-4 dark:text-white text-slate-950 uppercase tracking-tighter">¿Borrar?</h3>
                     <div className="flex gap-4 text-center">
                       <button onClick={()=>setItemToDelete(null)} className="flex-1 py-5 font-black bg-slate-100 dark:bg-slate-800 rounded-3xl text-vibrant-day">CANCELAR</button>
-                      <button onClick={confirmDelete} className="flex-1 py-5 bg-red-600 text-white rounded-3xl font-black shadow-lg shadow-red-500/20 active:scale-95 transition-all text-white text-white text-white">BORRAR</button>
+                      <button onClick={confirmDelete} className="flex-1 py-5 bg-red-600 text-white rounded-3xl font-black shadow-lg shadow-red-500/20 active:scale-95 transition-all text-white text-white text-white text-white">BORRAR</button>
                     </div>
                   </div>
                 </div>
@@ -645,12 +647,12 @@
 
               {showNewPlaylistModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in zoom-in-95">
-                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center text-vibrant-day">
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center text-vibrant-day text-center text-center">
                     <h3 className="text-2xl font-black mb-6 dark:text-white uppercase">Nombre del Culto</h3>
-                    <input type="text" className="w-full p-4 rounded-2xl border-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white outline-none focus:border-indigo-500 mb-6 text-slate-950 font-bold uppercase text-center" placeholder="DOMINGO MAÑANA" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
+                    <input type="text" className="w-full p-4 rounded-2xl border-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white outline-none focus:border-indigo-500 mb-6 text-slate-950 font-bold uppercase text-center shadow-inner" placeholder="DOMINGO MAÑANA" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
                     <div className="flex gap-3 text-center">
                       <button onClick={()=>setShowNewPlaylistModal(false)} className="flex-1 py-3 font-bold opacity-50 text-vibrant-day">CERRAR</button>
-                      <button onClick={async ()=>{ if(newPlaylistName && user){ await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), { name: newPlaylistName.trim().toUpperCase(), songs: [], updatedAt: Date.now() }); setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("CULTO CREADO"); } }} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg uppercase text-white text-white text-white">CREAR</button>
+                      <button onClick={async ()=>{ if(newPlaylistName && user){ await fb.addDoc(fb.collection(fb.db, 'artifacts', APP_ID, 'users', user.uid, 'playlists'), { name: newPlaylistName.trim().toUpperCase(), songs: [], updatedAt: Date.now() }); setShowNewPlaylistModal(false); setNewPlaylistName(''); showToast("CULTO CREADO"); } }} className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg uppercase text-white text-white text-white text-white">CREAR</button>
                     </div>
                   </div>
                 </div>
@@ -681,7 +683,7 @@
                         </button>
                       ))}
                     </div>
-                    <button onClick={()=>setShowAddSongModal(false)} className="w-full mt-6 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg text-center uppercase tracking-widest text-white text-white text-white">TERMINAR</button>
+                    <button onClick={()=>setShowAddSongModal(false)} className="w-full mt-6 py-5 bg-indigo-600 text-white rounded-3xl font-black text-lg text-center uppercase tracking-widest text-white text-white text-white text-white">TERMINAR</button>
                   </div>
                 </div>
               )}
