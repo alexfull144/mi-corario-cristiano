@@ -67,7 +67,7 @@
         body { background-color: #f8fafc; color: #020617; }
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
         
-        /* Visibilidad del Título Crítica: Blindado para Modo Presentación */
+        /* Visibilidad del Título Crítica */
         .text-vibrant-day { color: #020617 !important; opacity: 1 !important; font-weight: 900 !important; }
         .dark .text-vibrant-day { color: #ffffff !important; }
 
@@ -327,7 +327,7 @@
           const handleShare = () => {
               const url = window.location.origin + window.location.pathname + '?share=' + activePlaylist.id;
               navigator.clipboard.writeText(url);
-              showToast("Enlace copiado");
+              showToast("Enlace de My Corario copiado");
           };
 
           const confirmDelete = async () => {
@@ -350,12 +350,23 @@
 
           const handleAuth = async () => {
               const cleanEmail = email.trim().toLowerCase();
-              if(!cleanEmail || pass.length < 6) return showToast("Credenciales inválidas", "error");
+              if(!cleanEmail || pass.length < 6) return showToast("Min. 6 caracteres", "error");
               try {
                   if(authMode === 'register') await fb.createUserWithEmailAndPassword(fb.auth, cleanEmail, pass);
                   else await fb.signInWithEmailAndPassword(fb.auth, cleanEmail, pass);
-                  setShowAuthModal(false); showToast("¡Bienvenido!");
-              } catch(e) { showToast("Error en acceso", "error"); }
+                  setShowAuthModal(false); showToast("¡Sesión iniciada!");
+              } catch(e) { 
+                  let msg = "Error en credenciales";
+                  if (e.code === 'auth/wrong-password') msg = "Clave incorrecta";
+                  if (e.code === 'auth/email-already-in-use') msg = "El email ya existe";
+                  if (e.code === 'auth/account-exists-with-different-credential') msg = "Usa Google para entrar";
+                  showToast(msg, "error"); 
+              }
+          };
+
+          const updatePlaylistSongs = async (newSongs) => {
+              if (!activePlaylistId) return;
+              await fb.updateDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'playlists', activePlaylistId), { songs: newSongs });
           };
 
           const insertBracket = (side) => {
@@ -380,10 +391,6 @@
                 <button onClick={()=>setTransposeSteps(s=>s+1)} className="w-8 h-8 rounded-xl font-black bg-slate-50 dark:bg-slate-800 btn-3d btn-3d-secondary text-sm text-vibrant-day">+</button>
             </div>
           );
-
-          const updatePlaylistSongs = async (newSongs) => {
-              await fb.updateDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'playlists', activePlaylistId), { songs: newSongs });
-          };
 
           if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic uppercase text-center px-4 animate-pulse">CARGANDO MY CORARIO...</div>;
 
@@ -429,16 +436,15 @@
                                     <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-2xl text-white"><Icon name="plus" size={28} /></button>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    {/* CORRECCIÓN: Filtro de búsqueda extendido a título, artista y tonalidad */}
                                     {songs.filter(s => 
                                         (s.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                                         (s.artist || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
                                         (s.musicalKey || '').toLowerCase().includes(searchQuery.toLowerCase())
                                     ).map(s => (
                                         <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-5 song-card rounded-[32px] cursor-pointer flex justify-between items-center group transition-all hover:scale-[1.02] text-left relative overflow-hidden shadow-inner">
-                                            <div className="overflow-hidden pr-4 flex-1 text-left">
+                                            <div className="overflow-hidden pr-4 flex-1">
                                                 <h3 className="font-black text-xl uppercase truncate text-vibrant-day">{s.title}</h3>
-                                                <p className="text-xs font-bold mt-1 opacity-60 uppercase tracking-[0.1em] text-vibrant-day">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
+                                                <p className="text-xs font-bold mt-1 opacity-60 uppercase tracking-[0.1em] text-vibrant-day font-bold">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
                                             </div>
                                             <button onClick={(e) => { e.stopPropagation(); setItemToDelete({type:'song', id: s.id}); }} className="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all"><Icon name="trash-2" size={18} /></button>
                                         </div>
@@ -453,9 +459,9 @@
                                 {playlists.map(p => (
                                     <div key={p.id} onClick={() => {setActivePlaylistId(p.id); setPlaylistMode('list'); setCurrentView('playlistView');}} className="p-12 song-card rounded-[64px] hover:border-indigo-500 cursor-pointer shadow-2xl relative transition-all hover:scale-[1.02] text-left">
                                         <h3 className="text-4xl font-black uppercase italic text-vibrant-day pr-10 leading-tight">{p.name}</h3>
-                                        <div className="flex items-center gap-2 text-indigo-600 mt-4 text-left">
+                                        <div className="flex items-center gap-2 text-indigo-600 mt-4 text-left font-bold uppercase tracking-widest text-indigo-600">
                                             <Icon name="list-music" size={20}/>
-                                            <p className="text-sm font-black uppercase tracking-widest text-indigo-600 font-bold">{(p.songs || []).length} CANCIONES</p>
+                                            <p className="text-sm">{(p.songs || []).length} CANCIONES</p>
                                         </div>
                                         <button onClick={(e) => {e.stopPropagation(); setItemToDelete({type:'playlist', id: p.id}); }} className="absolute top-10 right-10 text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-2xl shadow-sm"><Icon name="trash-2" size={24}/></button>
                                     </div>
@@ -465,7 +471,7 @@
                     </div>
                 )}
 
-                {/* VISTA LECTURA CANCIÓN INDIVIDUAL */}
+                {/* VISTA LECTURA */}
                 {currentView === 'view' && activeSong && (
                     <div className="animate-in pb-40 song-content text-left">
                         <div className="flex justify-between items-center mb-12 print-hidden">
@@ -491,7 +497,7 @@
                                     <div>
                                         <label className="text-[10px] font-black uppercase text-slate-400 block mb-4 tracking-widest font-bold">Color Acordes</label>
                                         <div className="flex gap-3 justify-center">{['default', 'red', 'teal', 'violet', 'orange'].map(c => (
-                                            <button key={c} onClick={()=>setChordColor(c)} className={`w-10 h-10 rounded-full border-4 ${chordColor===c?'border-indigo-600 scale-110 shadow-lg':'border-transparent'} transition-all`} style={{ backgroundColor: c==='default'?'#4338ca':c==='red'?'#dc2626':c==='teal'?'#0d9488':c==='violet'?'#7c3aed':'#ea580c' }}></button>
+                                            <button key={c} onClick={()=>setChordColor(c)} className={`w-10 h-10 rounded-full border-4 ${chordColor===c?'border-white ring-2 ring-indigo-500 scale-110 shadow-lg':'border-transparent'} transition-all`} style={{ backgroundColor: c==='default'?'#4338ca':c==='red'?'#dc2626':c==='teal'?'#0d9488':c==='violet'?'#7c3aed':'#ea580c' }}></button>
                                         ))}</div>
                                     </div>
                                 </div>
@@ -508,7 +514,7 @@
                     </div>
                 )}
 
-                {/* VISTA CULTO */}
+                {/* VISTA CULTO (ORDENABLE) */}
                 {currentView === 'playlistView' && activePlaylist && (
                     <div className="animate-in pb-60 text-left">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-16 gap-10 border-b-8 border-indigo-500/10 pb-14 print-hidden">
@@ -523,7 +529,7 @@
                                 <button onClick={() => setPlaylistMode(playlistMode === 'list' ? 'full' : 'list')} className={`flex-1 md:flex-none btn-3d px-12 py-6 rounded-[40px] font-black text-sm tracking-widest flex items-center justify-center gap-4 shadow-2xl transition-all bg-indigo-600 text-white border-indigo-800 text-white text-white text-white text-white text-white font-bold`}>
                                     <Icon name={playlistMode === 'list' ? "eye" : "settings"} size={28} /> {playlistMode === 'list' ? "PRESENTACIÓN" : "MODO GESTIÓN"}
                                 </button>
-                                <button onClick={()=>setShowAddSongModal(true)} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-2xl border-4 border-indigo-800 text-white text-white text-white" title="Añadir Alabanza"><Icon name="plus" size={40}/></button>
+                                <button onClick={()=>setShowAddSongModal(true)} className="p-6 bg-indigo-600 text-white rounded-[32px] btn-3d shadow-2xl border-4 border-indigo-800 text-white text-white text-white" title="Añadir"><Icon name="plus" size={40}/></button>
                             </div>
                         </div>
 
@@ -557,7 +563,7 @@
                                             <div className="mb-24 border-b-[15px] border-indigo-600/10 pb-12 flex items-end gap-12 text-vibrant-day">
                                                 <span className="text-[18rem] font-black text-indigo-600 leading-none -mb-16 select-none font-bold">{idx + 1}</span>
                                                 <div className="flex-1 pb-8 text-left text-vibrant-day">
-                                                    {/* FORZADO text-slate-950 PARA MODO CLARO */}
+                                                    {/* TITULO, ARTISTA Y TONO BLINDADOS (Negro intenso en claro) */}
                                                     <h3 className={`text-8xl sm:text-[11rem] font-black leading-none mb-10 tracking-tighter uppercase italic text-slate-950 dark:text-white ${fontStyle}`}>{s.title}</h3>
                                                     <div className="flex flex-wrap items-center gap-6 opacity-80 font-black text-4xl tracking-widest uppercase mb-10 text-slate-950 dark:text-white font-bold">
                                                       <span>TONO: [{s.musicalKey}]</span><span className="opacity-50 text-indigo-400">•</span><span>{s.artist}</span>
@@ -593,7 +599,7 @@
                             </div>
                         </div>
                         <div className="space-y-10">
-                            {/* CORRECCIÓN: Inputs con colores claros forzados (text-slate-900 dark:text-white) */}
+                            {/* COLORES CLAROS EN EDITOR (Negro en claro / Blanco en oscuro) */}
                             <input type="text" placeholder="Título..." className="w-full p-10 rounded-[48px] bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-2xl text-slate-900 dark:text-white transition-all font-bold shadow-inner" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                 <input type="text" placeholder="Compositor..." className="w-full p-8 rounded-[32px] bg-white dark:bg-slate-900 border-4 border-slate-700 font-black text-xl text-slate-900 dark:text-white font-bold shadow-inner" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
@@ -608,7 +614,6 @@
                                     <button onClick={() => insertBracket('right')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl text-indigo-600 border-4 border-indigo-200 shadow-xl font-black text-indigo-600 text-center pb-2 font-bold">]</button>
                                 </div>
                             </div>
-                            {/* CORRECCIÓN: Textarea con colores claros forzados (text-slate-900 dark:text-white) */}
                             <textarea ref={textareaRef} placeholder="Pega letra con acordes encima..." className="w-full h-[700px] p-12 rounded-[80px] bg-white dark:bg-slate-900 border-4 border-slate-300 dark:border-slate-800 font-mono text-2xl font-bold outline-none focus:ring-[30px] ring-indigo-500/5 custom-scrollbar shadow-inner text-slate-900 dark:text-white font-bold" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
                         </div>
                     </div>
@@ -642,7 +647,7 @@
                 </div>
               )}
 
-              {/* MODALES */}
+              {/* MODALES (IDÉNTICOS) */}
               {showAuthModal && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] animate-in text-center text-vibrant-day">
                     <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[72px] p-14 shadow-2xl relative border-8 border-indigo-600/10 text-slate-950 dark:text-white transition-all text-center">
@@ -680,7 +685,7 @@
               )}
 
               {showNewPlaylistModal && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in zoom-in-95 text-center font-bold">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in zoom-in-95 text-center">
                   <div className="bg-white dark:bg-slate-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl text-center text-vibrant-day font-bold">
                     <h3 className="text-2xl font-black mb-6 dark:text-white uppercase font-bold">Nombre del Culto</h3>
                     <input type="text" className="w-full p-4 rounded-2xl border-2 dark:bg-slate-800 dark:border-slate-700 dark:text-white outline-none focus:border-indigo-500 mb-6 text-slate-950 font-bold uppercase text-center shadow-inner" placeholder="DOMINGO MAÑANA" value={newPlaylistName} onChange={e=>setNewPlaylistName(e.target.value)} autoFocus />
@@ -693,7 +698,7 @@
               )}
 
               {showAddSongModal && activePlaylist && (
-                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in zoom-in-95 text-center font-bold">
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[110] animate-in zoom-in-95 text-center">
                   <div className="bg-white dark:bg-slate-900 rounded-[48px] p-8 max-w-md w-full shadow-2xl max-h-[80vh] flex flex-col text-left">
                     <div className="flex justify-between items-center mb-6 text-left font-bold">
                       <h3 className="text-2xl font-black truncate pr-4 dark:text-white text-vibrant-day uppercase">Añadir a {activePlaylist.name}</h3>
