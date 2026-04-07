@@ -6,12 +6,14 @@
     <meta name="google" content="notranslate">
     <title>My Corario - Master Pro</title>
     
+    <!-- Librerías Core -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- Firebase Compat (Más estable para este entorno) -->
     <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore-compat.js"></script>
@@ -19,15 +21,21 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
         .btn-master { transition: all 0.1s ease; box-shadow: 0 6px 0 #000; border: 4px solid #000; }
         .btn-master:active { transform: translateY(4px); box-shadow: 0 2px 0 #000; }
+        .btn-master:disabled { opacity: 0.5; transform: none; box-shadow: 0 4px 0 #000; }
+
         .card-master { background: white; border: 4px solid #000; box-shadow: 8px 8px 0px 0px #000; transition: all 0.2s; }
         .card-master:active { transform: translate(2px, 2px); box-shadow: 4px 4px 0px 0px #000; }
+
         .dark .card-master { background: #0f172a; border-color: #334155; box-shadow: 8px 8px 0px 0px #000; }
+
         .chord-row { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.2rem; }
         .chord-unit { display: flex; flex-direction: column; margin-right: 8px; }
         .chord-mark { font-weight: 900; color: #6366f1; line-height: 1; margin-bottom: 4px; }
         .lyric-mark { white-space: pre; font-weight: 700; line-height: 1.2; }
+
         @media print { .no-print { display: none !important; } }
         .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes pop { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
@@ -62,7 +70,7 @@
                     iconRef.current.innerHTML = `<i data-lucide="${name}" style="width:${size}px; height:${size}px"></i>`;
                     window.lucide.createIcons();
                 }
-            }, [name]);
+            }, [name, size]);
             return <span ref={iconRef} className={`inline-flex items-center ${className}`}></span>;
         };
 
@@ -74,18 +82,24 @@
             const [isDarkMode, setIsDarkMode] = useState(false);
             const [activeSongId, setActiveSongId] = useState(null);
             const [searchQuery, setSearchQuery] = useState('');
+            
+            // Estados de Autenticación
             const [showAuthModal, setShowAuthModal] = useState(false);
+            const [authMode, setAuthMode] = useState('google'); // 'google' o 'email'
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [authLoading, setAuthLoading] = useState(false);
             const [toast, setToast] = useState(null);
 
+            // Editor
             const [editTitle, setEditTitle] = useState('');
             const [editArtist, setEditArtist] = useState('');
             const [editLyrics, setEditLyrics] = useState('');
             const [editKey, setEditKey] = useState('');
 
+            // Herramientas
             const [transposeSteps, setTransposeSteps] = useState(0);
             const [textSize, setTextSize] = useState(22);
-            const [isScrolling, setIsScrolling] = useState(false);
-            const [scrollSpeed, setScrollSpeed] = useState(2);
 
             const appId = "corario-pro-final-v4";
 
@@ -93,13 +107,22 @@
                 const initAuth = async () => {
                     try {
                         const result = await auth.getRedirectResult();
-                        if (result?.user) showToast("¡Conectado con Google!");
-                    } catch (e) { console.error(e); }
+                        if (result?.user) {
+                            showToast("¡Sincronizado con Google!");
+                            setShowAuthModal(false);
+                        }
+                    } catch (e) { console.error("Error en redirección:", e); }
 
                     auth.onAuthStateChanged(async (u) => {
                         setUser(u);
                         if (!u) {
-                            try { await auth.signInAnonymously(); } catch (err) { console.error(err); }
+                            try {
+                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                    await auth.signInWithCustomToken(__initial_auth_token);
+                                } else {
+                                    await auth.signInAnonymously();
+                                }
+                            } catch (err) { console.warn("Fallback anónimo"); }
                         }
                         setLoading(false);
                     });
@@ -117,14 +140,26 @@
             const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
             const handleSave = async () => {
-                if (!editTitle) return showToast("Falta el título");
-                const data = { title: editTitle.toUpperCase(), artist: editArtist.toUpperCase() || "AUTOR", musicalKey: editKey.toUpperCase() || "G", lyrics: editLyrics, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+                if (!editTitle) return showToast("El título es obligatorio");
+                const data = { title: editTitle.toUpperCase(), artist: editArtist.toUpperCase() || "AUTOR", musicalKey: editKey.toUpperCase() || "S/D", lyrics: editLyrics, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
                 try {
                     const ref = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('songs');
                     if (activeSongId) await ref.doc(activeSongId).update(data);
                     else await ref.add(data);
-                    setCurrentView('list'); showToast("¡Guardado!");
+                    setCurrentView('list'); showToast("¡Guardado correctamente!");
                 } catch (e) { showToast("Error al guardar"); }
+            };
+
+            const handleEmailAuth = async (type) => {
+                if (!email || !password) return showToast("Completa los campos");
+                setAuthLoading(true);
+                try {
+                    if (type === 'login') await auth.signInWithEmailAndPassword(email, password);
+                    else await auth.createUserWithEmailAndPassword(email, password);
+                    setShowAuthModal(false);
+                    showToast("¡Bienvenido!");
+                } catch (e) { showToast("Error: Revisa tus credenciales"); }
+                setAuthLoading(false);
             };
 
             const transposeChord = (chord, steps) => {
@@ -169,7 +204,7 @@
                 });
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic text-2xl animate-pulse">CARGANDO...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic text-2xl animate-pulse">CARGANDO CORARIO...</div>;
 
             const activeSong = songs.find(s => s.id === activeSongId);
 
@@ -189,19 +224,22 @@
                                     <LucideIcon name={isDarkMode ? "sun" : "moon"} size={20} />
                                 </button>
                                 
-                                {/* BOTÓN DE ESTADO DE CUENTA */}
                                 {user && !user.isAnonymous ? (
-                                    <div className="flex items-center gap-2 bg-white/10 pl-3 pr-1 py-1 rounded-2xl border border-white/20">
+                                    <div className="flex items-center gap-2 bg-white/20 pl-3 pr-1 py-1 rounded-full border border-white/30">
                                         <div className="text-right hidden sm:block">
-                                            <p className="text-[8px] font-black opacity-50 uppercase leading-none">Cuenta Pro</p>
                                             <p className="text-[10px] font-bold leading-tight truncate max-w-[80px]">{user.displayName || user.email.split('@')[0]}</p>
                                         </div>
-                                        <button onClick={() => auth.signOut()} className="w-8 h-8 rounded-full border-2 border-indigo-400 overflow-hidden shadow-lg active:scale-90 transition-transform">
-                                            <img src={user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`} className="w-full h-full object-cover" />
+                                        <button onClick={() => auth.signOut()} className="w-8 h-8 rounded-full border-2 border-white overflow-hidden shadow-lg active:scale-90 transition-transform">
+                                            <img 
+                                                src={user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email}`} 
+                                                className="w-full h-full object-cover" 
+                                                referrerPolicy="no-referrer"
+                                                alt="avatar"
+                                            />
                                         </button>
                                     </div>
                                 ) : (
-                                    <button onClick={() => setShowAuthModal(true)} className="btn-master bg-white text-indigo-700 px-5 py-2 rounded-xl font-black text-[10px] uppercase">ENTRAR</button>
+                                    <button onClick={() => setShowAuthModal(true)} className="btn-master bg-white text-indigo-700 px-5 py-2 rounded-xl font-black text-xs uppercase">ENTRAR</button>
                                 )}
                             </div>
                         </header>
@@ -224,7 +262,6 @@
                                                 <p className="text-xs font-bold opacity-40 mt-1 uppercase tracking-widest">{s.artist} • [{s.musicalKey}]</p>
                                             </div>
                                         ))}
-                                        {songs.length === 0 && <div className="col-span-full py-20 text-center opacity-30 italic font-black uppercase tracking-widest">No hay alabanzas aún</div>}
                                     </div>
                                 </div>
                             )}
@@ -242,7 +279,7 @@
                                             <input type="text" placeholder="TONO (G)..." className="w-full p-4 rounded-2xl border-4 border-black dark:border-slate-800 font-bold uppercase dark:bg-slate-900" value={editKey} onChange={e=>setEditKey(e.target.value)} />
                                         </div>
                                         <textarea placeholder="Pega letra con acordes [Do]..." className="w-full h-96 p-6 rounded-[40px] border-4 border-black dark:border-slate-800 font-mono text-lg dark:bg-slate-900 outline-none" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
-                                        <button onClick={handleSave} className="w-full py-6 bg-indigo-600 text-white rounded-[40px] btn-master font-black text-2xl uppercase shadow-[0_8px_0_#1e1b4b]">GUARDAR</button>
+                                        <button onClick={handleSave} className="w-full py-6 bg-indigo-600 text-white rounded-[40px] btn-master font-black text-2xl uppercase shadow-[0_8px_0_#1e1b4b]">GUARDAR ALABANZA</button>
                                     </div>
                                 </div>
                             )}
@@ -253,7 +290,7 @@
                                         <button onClick={() => setCurrentView('list')} className="text-indigo-600 font-black flex items-center gap-2 uppercase text-xs"><LucideIcon name="chevron-left" /> VOLVER</button>
                                         <div className="flex gap-2">
                                             <button onClick={()=>{setEditTitle(activeSong.title); setEditArtist(activeSong.artist); setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey); setCurrentView('edit')}} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl"><LucideIcon name="edit-2" size={20}/></button>
-                                            <button onClick={async() => { if(confirm("¿Borrar?")) { await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('songs').doc(activeSong.id).delete(); setCurrentView('list'); } }} className="p-3 bg-red-100 text-red-600 rounded-xl"><LucideIcon name="trash-2" size={20}/></button>
+                                            <button onClick={async() => { if(confirm("¿Borrar alabanza?")) { await db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('songs').doc(activeSong.id).delete(); setCurrentView('list'); } }} className="p-3 bg-red-100 text-red-600 rounded-xl"><LucideIcon name="trash-2" size={20}/></button>
                                         </div>
                                     </div>
                                     
@@ -274,15 +311,37 @@
                             )}
                         </main>
 
+                        {/* MODAL AUTH RESTAURADO */}
                         {showAuthModal && (
                             <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] text-center backdrop-blur-sm">
-                                <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[48px] p-10 border-[12px] border-indigo-600/10 shadow-2xl relative animate-pop">
+                                <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[56px] p-10 border-[12px] border-indigo-600/10 shadow-2xl relative animate-pop">
                                     <button onClick={()=>setShowAuthModal(false)} className="absolute top-8 right-8 opacity-30"><LucideIcon name="x" size={32}/></button>
-                                    <h3 className="text-3xl font-black uppercase italic tracking-tighter mb-10 leading-none">ÚNETE AL CORARIO</h3>
-                                    <button onClick={() => auth.signInWithRedirect(googleProvider)} className="w-full py-6 bg-white dark:bg-slate-800 border-4 border-black rounded-3xl font-black text-sm flex items-center justify-center gap-4 shadow-[6px_6px_0px_0px_#000] active:translate-y-1 active:shadow-none transition-all mb-8">
-                                        <img src="https://www.google.com/favicon.ico" className="w-8 h-8" /> CONTINUAR CON GOOGLE
-                                    </button>
-                                    <p className="text-[10px] opacity-40 uppercase font-black px-6 leading-tight">Al entrar con Google, tus alabanzas se sincronizarán en todos tus dispositivos.</p>
+                                    <h3 className="text-3xl font-black uppercase italic tracking-tighter mb-8 leading-none">INICIAR SESIÓN</h3>
+                                    
+                                    {authMode === 'google' ? (
+                                        <div className="space-y-6">
+                                            <button 
+                                                disabled={authLoading}
+                                                onClick={() => auth.signInWithRedirect(googleProvider)} 
+                                                className="w-full py-6 bg-white dark:bg-slate-800 border-4 border-black rounded-3xl font-black text-sm flex items-center justify-center gap-4 shadow-[6px_6px_0px_0px_#000] active:translate-y-1 active:shadow-none transition-all mb-4"
+                                            >
+                                                {authLoading ? <LucideIcon name="loader-2" className="animate-spin" /> : <img src="https://www.google.com/favicon.ico" className="w-8 h-8" />} 
+                                                CONTINUAR CON GOOGLE
+                                            </button>
+                                            <button onClick={() => setAuthMode('email')} className="text-xs font-black uppercase opacity-60 hover:opacity-100 underline decoration-2">O usar mi correo electrónico</button>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <input type="email" placeholder="EMAIL" className="w-full p-4 rounded-2xl border-4 border-black dark:bg-slate-800 font-bold uppercase outline-none focus:border-indigo-500" value={email} onChange={e=>setEmail(e.target.value)} />
+                                            <input type="password" placeholder="CONTRASEÑA" className="w-full p-4 rounded-2xl border-4 border-black dark:bg-slate-800 font-bold uppercase outline-none focus:border-indigo-500" value={password} onChange={e=>setPassword(e.target.value)} />
+                                            <div className="flex gap-2">
+                                                <button disabled={authLoading} onClick={() => handleEmailAuth('login')} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black btn-master">ENTRAR</button>
+                                                <button disabled={authLoading} onClick={() => handleEmailAuth('register')} className="flex-1 py-4 bg-white dark:bg-slate-800 border-4 border-black rounded-2xl font-black">CREAR</button>
+                                            </div>
+                                            <button onClick={() => setAuthMode('google')} className="block w-full text-xs font-black uppercase opacity-60 pt-4 underline decoration-2">Volver a Google</button>
+                                        </div>
+                                    )}
+                                    <p className="text-[10px] opacity-40 uppercase font-black px-6 mt-8">Tus alabanzas se guardan automáticamente en la nube.</p>
                                 </div>
                             </div>
                         )}
