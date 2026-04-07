@@ -27,12 +27,12 @@
 
         .notranslate { translate: no !important; }
 
-        /* --- BOTONES 3D --- */
+        /* --- BOTONES 3D NEUBRUTALISTAS --- */
         .btn-3d {
             position: relative;
             transition: all 0.1s ease;
             box-shadow: 0 4px 0 #1e1b4b; 
-            border: 2px solid #1e1b4b;
+            border: 3px solid #1e1b4b;
             font-weight: 800;
         }
         .btn-3d:active {
@@ -45,7 +45,7 @@
         /* --- RENDERIZADO DE ACORDES --- */
         .chord-line { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.5rem; min-height: 3em; }
         .chord-seg { display: inline-flex; flex-direction: column; vertical-align: bottom; margin-right: 4px; }
-        .chord-top { height: 1.4em; font-weight: 900; line-height: 1; white-space: nowrap; margin-bottom: 4px; user-select: none; font-family: 'JetBrains Mono', monospace; }
+        .chord-top { height: 1.4em; font-weight: 900; line-height: 1; white-space: nowrap; margin-bottom: 4px; user-select: none; font-family: 'JetBrains Mono', monospace; color: #4338ca; }
         .text-bottom { line-height: 1.3; white-space: pre; font-weight: 700; color: inherit; }
 
         /* MODO IMPRESORA */
@@ -67,18 +67,13 @@
         body { background-color: #f8fafc; color: #020617; }
         .dark body { background-color: #020617 !important; color: #f8fafc !important; }
         
-        /* Visibilidad del Título Crítica */
         .text-vibrant-day { color: #020617 !important; opacity: 1 !important; font-weight: 900 !important; }
         .dark .text-vibrant-day { color: #ffffff !important; }
 
-        .song-card { background-color: #ffffff; border: 3px solid #000000; box-shadow: 0 6px 0 #000000; transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .song-card { background-color: #ffffff; border: 4px solid #000000; box-shadow: 0 6px 0 #000000; transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .dark .song-card { background-color: #0f172a; border-color: #1e293b; box-shadow: 0 6px 0 #000000; }
         
-        .dragging { opacity: 0.5 !important; transform: scale(0.95); border-style: dashed !important; }
-
         .font-modern { font-family: 'Inter', sans-serif; }
-        .font-elegant { font-family: 'Playfair Display', serif; }
-        .font-classic { font-family: 'JetBrains Mono', monospace; }
     </style>
 </head>
 <body class="bg-slate-50">
@@ -128,13 +123,9 @@
             const [songs, setSongs] = useState([]);
             const [playlists, setPlaylists] = useState([]);
             const [loading, setLoading] = useState(true);
-            
-            const appId = "my-corario-master-v101"; 
-
             const [currentView, setCurrentView] = useState('list'); 
             const [activeTab, setActiveTab] = useState('songs');
             const [isDarkMode, setIsDarkMode] = useState(false);
-            
             const [activeSongId, setActiveSongId] = useState(null);
             const [activePlaylistId, setActivePlaylistId] = useState(null);
             const [transposeSteps, setTransposeSteps] = useState(0);
@@ -143,58 +134,41 @@
             const [scrollSpeed, setScrollSpeed] = useState(2);
             const [bpm, setBpm] = useState(120);
             const [isMetronomePlaying, setIsMetronomePlaying] = useState(false);
-            
-            const [fontStyle, setFontStyle] = useState('font-modern');
-            const [lyricColor, setLyricColor] = useState('default');
-            const [chordColor, setChordColor] = useState('default');
-            const [showStylePanel, setShowStylePanel] = useState(false);
-
-            const [editTitle, setEditTitle] = useState('');
-            const [editArtist, setEditArtist] = useState('');
-            const [editLyrics, setEditLyrics] = useState('');
-            const [editKey, setEditKey] = useState('');
-
             const [searchQuery, setSearchQuery] = useState('');
             const [toast, setToast] = useState(null);
             const [itemToDelete, setItemToDelete] = useState(null);
-
             const [showAuthModal, setShowAuthModal] = useState(false);
             const [authMode, setAuthMode] = useState('login'); 
             const [email, setEmail] = useState('');
             const [pass, setPass] = useState('');
-
             const [showNewPlaylistModal, setShowNewPlaylistModal] = useState(false);
             const [newPlaylistName, setNewPlaylistName] = useState('');
             const [showAddSongModal, setShowAddSongModal] = useState(false);
             const [playlistMode, setPlaylistMode] = useState('list');
 
-            const [draggedItemIndex, setDraggedItemIndex] = useState(null);
-            const [isDragging, setIsDragging] = useState(false);
-
             const audioCtxRef = useRef(null);
             const textareaRef = useRef(null);
+            const appId = "my-corario-master-v101";
 
             useEffect(() => {
                 if (isDarkMode) document.documentElement.classList.add('dark');
                 else document.documentElement.classList.remove('dark');
             }, [isDarkMode]);
 
-            // --- LÓGICA DE USUARIO REPARADA SIN TOCAR DISEÑO ---
+            // --- REPARACIÓN DE GOOGLE LOGIN ---
             useEffect(() => {
                 const initAuth = async () => {
                     try {
                         const result = await fb.getRedirectResult(fb.auth);
                         if (result?.user) {
                             setUser(result.user);
-                            showToast("¡Sesión iniciada!");
+                            showToast("¡Google conectado!");
                         }
-                    } catch (e) { console.error(e); }
+                    } catch (e) { console.error("Redirect Error", e); }
 
                     fb.onAuthStateChanged(fb.auth, (u) => {
                         setUser(u);
-                        if (!u) {
-                            fb.signInAnonymously(fb.auth).catch(() => {});
-                        }
+                        if (!u) fb.signInAnonymously(fb.auth).catch(() => {});
                         setLoading(false);
                     });
                 };
@@ -211,32 +185,6 @@
                 });
                 return () => { unsubS(); unsubP(); };
             }, [user]);
-
-            useEffect(() => {
-                let interval;
-                if (isScrolling) interval = setInterval(() => window.scrollBy(0, scrollSpeed), 50);
-                return () => clearInterval(interval);
-            }, [isScrolling, scrollSpeed]);
-
-            useEffect(() => {
-                let interval;
-                if (isMetronomePlaying) {
-                    interval = setInterval(() => {
-                        if (!audioCtxRef.current) audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
-                        const osc = audioCtxRef.current.createOscillator();
-                        const gain = audioCtxRef.current.createGain();
-                        osc.connect(gain); gain.connect(audioCtxRef.current.destination);
-                        osc.frequency.value = 1000;
-                        gain.gain.setValueAtTime(0.2, audioCtxRef.current.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.001, audioCtxRef.current.currentTime + 0.05);
-                        osc.start(); osc.stop(audioCtxRef.current.currentTime + 0.05);
-                    }, 60000 / bpm);
-                }
-                return () => clearInterval(interval);
-            }, [isMetronomePlaying, bpm]);
-
-            const lyricStyleMap = { 'default': isDarkMode ? '#f8fafc' : '#020617', 'blue': '#2563eb', 'emerald': '#059669', 'rose': '#e11d48', 'amber': '#d97706' };
-            const chordStyleMap = { 'default': '#4338ca', 'red': '#dc2626', 'teal': '#0d9488', 'violet': '#7c3aed', 'orange': '#ea580c' };
 
             const transposeChord = (chordStr, steps) => {
                 if (!chordStr || steps === 0) return chordStr;
@@ -264,13 +212,13 @@
                     });
                     if (lastChord) segments.push({ chord: lastChord, text: "" });
                     return (
-                        <div key={i} className={`chord-line notranslate ${fontStyle}`} translate="no">
+                        <div key={i} className="chord-line notranslate" translate="no">
                             {segments.map((seg, j) => (
-                                <div key={j} className="chord-seg notranslate text-left">
-                                    <span className="chord-top notranslate" style={{ fontSize: `${textSize*0.75}px`, color: chordStyleMap[chordColor] }}>
+                                <div key={j} className="chord-seg">
+                                    <span className="chord-top" style={{ fontSize: `${textSize*0.75}px` }}>
                                         {seg.chord ? transposeChord(seg.chord, steps) : '\u00A0'}
                                     </span>
-                                    <span className="text-bottom notranslate" style={{ fontSize: `${textSize}px`, color: lyricStyleMap[lyricColor] }}>
+                                    <span className="text-bottom" style={{ fontSize: `${textSize}px` }}>
                                         {seg.text || (seg.chord ? '\u00A0' : '')}
                                     </span>
                                 </div>
@@ -281,13 +229,12 @@
             };
 
             const handleSave = async () => {
-                if (!editTitle.trim()) return showToast("Falta el título", "error");
+                if (!editTitle.trim()) return showToast("Título obligatorio", "error");
                 try {
                     const data = { title: editTitle.toUpperCase(), artist: editArtist.toUpperCase(), lyrics: editLyrics, musicalKey: editKey.toUpperCase(), updatedAt: Date.now() };
                     if (activeSongId) await fb.updateDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'songs', activeSongId), data);
                     else await fb.addDoc(fb.collection(fb.db, 'artifacts', appId, 'users', user.uid, 'songs'), data);
-                    setCurrentView('list'); setEditTitle(''); setEditLyrics('');
-                    showToast("¡Guardado!");
+                    setCurrentView('list'); showToast("¡Guardado!");
                 } catch (e) { showToast("Error", "error"); }
             };
 
@@ -301,60 +248,8 @@
 
             const showToast = (message, type = "success") => { setToast({message, type}); setTimeout(() => setToast(null), 3000); };
 
-            const linkChordsManually = () => {
-                if (!editLyrics) return;
-                const lines = editLyrics.split('\n');
-                let result = [];
-                const chordRegex = /^([A-G]|Do|Re|Mi|Fa|Sol|La|Si)[#b]?(m|maj|min|dim|aug|sus|add|[0-9]|[-+()/#])*$/i;
-                for (let i = 0; i < lines.length; i++) {
-                    const current = lines[i]; const next = lines[i+1];
-                    const words = current.trim().split(/\s+/);
-                    const isChordLine = words.length > 0 && words.every(w => chordRegex.test(w));
-                    if (isChordLine && next) {
-                        let merged = next.split(''); let offset = 0;
-                        const regex = /([^\s]+)/g; let m;
-                        while ((m = regex.exec(current)) !== null) {
-                            const tag = `[${m[0]}]`;
-                            merged.splice(Math.min(m.index + offset, merged.length), 0, tag);
-                            offset += tag.length;
-                        }
-                        result.push(merged.join('')); i++; 
-                    } else result.push(current);
-                }
-                setEditLyrics(result.join('\n'));
-                showToast("¡Acordes vinculados!");
-            };
-
-            const insertBracket = (side) => {
-                if (!textareaRef.current) return;
-                const start = textareaRef.current.selectionStart;
-                const end = textareaRef.current.selectionEnd;
-                setEditLyrics(editLyrics.substring(0, start) + (side === 'left' ? '[' : ']') + editLyrics.substring(end));
-                setTimeout(() => { textareaRef.current.focus(); textareaRef.current.setSelectionRange(start + 1, start + 1); }, 0);
-            };
-
-            const updatePlaylistSongs = async (newSongs) => {
-                if (!activePlaylistId) return;
-                await fb.updateDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'playlists', activePlaylistId), { songs: newSongs });
-            };
-
-            const confirmDelete = async () => {
-              if(!itemToDelete) return;
-              try {
-                  if(itemToDelete.type === 'song') await fb.deleteDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'songs', itemToDelete.id));
-                  else if(itemToDelete.type === 'playlist') await fb.deleteDoc(fb.doc(fb.db, 'artifacts', appId, 'users', user.uid, 'playlists', itemToDelete.id));
-                  showToast("Eliminado"); setItemToDelete(null);
-                  if (currentView !== 'list') setCurrentView('list');
-              } catch(e) { showToast("Error al borrar", "error"); }
-            };
-
-            if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic uppercase animate-pulse">ABRIENDO CORARIO...</div>;
-
-            const activeSong = songs.find(s => s.id === activeSongId);
-            const activePlaylist = playlists.find(p => p.id === activePlaylistId);
-
             const TransposeToolbar = ({ songKey }) => (
-                <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-3xl border-2 border-slate-950 dark:border-slate-800 shadow-sm print-hidden max-w-fit mt-4">
+                <div className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900 rounded-3xl border-4 border-slate-950 shadow-sm print-hidden max-w-fit mt-4">
                     <button onClick={()=>setTransposeSteps(s=>s-1)} className="w-8 h-8 rounded-xl font-black bg-slate-50 dark:bg-slate-800 btn-3d btn-3d-secondary text-sm text-vibrant-day">-</button>
                     <div className="px-4 font-black text-indigo-600 uppercase text-sm min-w-[100px] text-center">
                         {transposeSteps === 0 ? (songKey || 'G') : transposeChord(songKey || 'G', transposeSteps)}
@@ -363,15 +258,20 @@
                 </div>
             );
 
+            if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic uppercase animate-pulse">Abriendo My Corario...</div>;
+
+            const activeSong = songs.find(s => s.id === activeSongId);
+            const activePlaylist = playlists.find(p => p.id === activePlaylistId);
+
             return (
                 <div className="min-h-screen transition-all">
                     {toast && <div className={`fixed top-6 left-1/2 -translate-x-1/2 px-6 py-3 rounded-full font-black shadow-2xl z-[100] animate-bounce bg-indigo-600 text-white`}>{toast.message}</div>}
 
-                    {/* HEADER CON PERFIL REPARADO SIN TOCAR DISEÑO */}
+                    {/* HEADER - MARCA "MY CORARIO" REINSTALADA */}
                     <header className="sticky top-0 z-40 bg-indigo-700 dark:bg-slate-900 text-white p-4 shadow-xl flex justify-between items-center">
                         <div className="flex items-center gap-3 cursor-pointer select-none" onClick={() => {setCurrentView('list'); setIsScrolling(false);}}>
-                            <Icon name="music" size={28} />
-                            <h1 className="text-2xl font-black italic uppercase tracking-tighter hidden xs:block">My Corario</h1>
+                            <Icon name="music" size={32} />
+                            <h1 className="text-3xl font-black italic uppercase tracking-tighter hidden xs:block">My Corario</h1>
                         </div>
                         <div className="flex items-center gap-3">
                             <button onClick={() => setIsDarkMode(!isDarkMode)} className="w-10 h-10 flex items-center justify-center bg-white/10 dark:bg-slate-800 rounded-xl">
@@ -379,7 +279,7 @@
                             </button>
                             
                             {user && !user.isAnonymous ? (
-                                <div className="flex items-center gap-2 bg-black/30 pl-3 pr-1 py-1 rounded-full border border-white/20 shadow-inner">
+                                <div className="flex items-center gap-2 bg-black/30 pl-3 pr-1 py-1 rounded-full border-4 border-white/20 shadow-inner">
                                     <div className="text-right hidden sm:block">
                                         <p className="text-[8px] font-black opacity-60 uppercase leading-none">Cuenta Pro</p>
                                         <p className="text-[10px] font-bold leading-tight truncate max-w-[80px]">{user.displayName || user.email.split('@')[0]}</p>
@@ -395,7 +295,7 @@
                                     </button>
                                 </div>
                             ) : (
-                                <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-5 py-2 rounded-xl font-black text-xs uppercase tracking-tighter">ENTRAR</button>
+                                <button onClick={() => setShowAuthModal(true)} className="btn-3d bg-white text-indigo-700 px-6 py-2 rounded-xl font-black text-xs uppercase tracking-tighter">ENTRAR</button>
                             )}
                         </div>
                     </header>
@@ -410,16 +310,16 @@
 
                                 {activeTab === 'songs' ? (
                                     <>
-                                        <div className="flex gap-4 mb-10 search-bar">
+                                        <div className="flex gap-4 mb-10">
                                             <div className="relative flex-1">
                                                 <Icon name="search" className="absolute left-4 top-3.5 opacity-60 text-slate-950 dark:text-white" />
-                                                <input type="text" placeholder="Buscar..." className="w-full pl-12 pr-8 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-xl shadow-sm text-slate-950 dark:text-white" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
+                                                <input type="text" placeholder="Buscar título o artista..." className="w-full pl-12 pr-8 py-3.5 rounded-2xl bg-white dark:bg-slate-900 border-4 border-slate-950 focus:border-indigo-600 font-black text-xl shadow-sm text-slate-950 dark:text-white" value={searchQuery} onChange={(e)=>setSearchQuery(e.target.value)} />
                                             </div>
                                             <button onClick={() => { setActiveSongId(null); setEditTitle(''); setEditLyrics(''); setEditArtist(''); setEditKey(''); setCurrentView('edit'); }} className="btn-3d bg-indigo-600 text-white w-14 h-14 flex items-center justify-center rounded-2xl shadow-2xl"><Icon name="plus" size={28} /></button>
                                         </div>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             {songs.filter(s => (s.title || '').toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
-                                                <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-6 song-card rounded-[32px] cursor-pointer flex justify-between items-center group transition-all text-left">
+                                                <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view');}} className="p-6 song-card rounded-[32px] cursor-pointer group flex justify-between items-center transition-all text-left">
                                                     <div>
                                                         <h3 className="font-black text-xl uppercase truncate text-vibrant-day">{s.title}</h3>
                                                         <p className="text-xs font-bold mt-1 opacity-60 uppercase tracking-widest text-vibrant-day">[{s.musicalKey || 'G'}] • {s.artist || 'ANÓNIMO'}</p>
@@ -431,7 +331,7 @@
                                     </>
                                 ) : (
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                        <button onClick={() => setShowNewPlaylistModal(true)} className="p-16 border-4 border-dashed border-slate-950 rounded-[56px] text-slate-950 dark:text-slate-400 font-black flex flex-col items-center gap-6 hover:bg-white dark:hover:bg-slate-900 transition-all">
+                                        <button onClick={() => setShowNewPlaylistModal(true)} className="p-16 border-4 border-dashed border-slate-950 rounded-[56px] text-slate-950 dark:text-slate-400 font-black flex flex-col items-center gap-6 hover:bg-white dark:hover:bg-slate-900 transition-all text-slate-950">
                                             <Icon name="folder-plus" size={56} /> <span className="tracking-[0.3em] uppercase">NUEVO CULTO</span>
                                         </button>
                                         {playlists.map(p => (
@@ -453,68 +353,38 @@
                                         <Icon name="arrow-left" size={20}/> VOLVER
                                     </button>
                                     <div className="flex gap-2">
-                                        <button className="p-4 bg-white dark:bg-slate-800 text-indigo-600 rounded-2xl btn-3d btn-3d-secondary shadow-lg" onClick={() => setShowStylePanel(!showStylePanel)}><Icon name="palette" size={28}/></button>
                                         <button onClick={() => window.print()} className="p-4 bg-slate-800 text-white rounded-2xl btn-3d shadow-lg"><Icon name="printer" size={28}/></button>
                                         <button onClick={() => { setEditTitle(activeSong.title); setEditArtist(activeSong.artist || ''); setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey || ''); setCurrentView('edit'); }} className="p-4 bg-indigo-600 text-white rounded-2xl btn-3d shadow-lg"><Icon name="edit-3" size={28}/></button>
                                     </div>
                                 </div>
-                                <h2 className="text-7xl md:text-9xl font-black mb-6 uppercase tracking-tighter italic text-vibrant-day">{activeSong.title}</h2>
-                                <p className="text-4xl opacity-60 italic mb-14 uppercase tracking-widest text-vibrant-day">{activeSong.artist || 'MÚSICA CRISTIANA'}</p>
+                                <h2 className="text-8xl md:text-[10rem] font-black mb-6 uppercase tracking-tighter italic text-vibrant-day leading-none">{activeSong.title}</h2>
+                                <p className="text-4xl opacity-40 font-black mb-14 uppercase tracking-widest text-vibrant-day">{activeSong.artist || 'MÚSICA CRISTIANA'}</p>
                                 <TransposeToolbar songKey={activeSong.musicalKey} />
-                                <div className="pb-60 pt-10 font-bold leading-relaxed">{renderLyrics(activeSong.lyrics)}</div>
+                                <div className="pb-60 pt-16 font-bold leading-relaxed">{renderLyrics(activeSong.lyrics, transposeSteps)}</div>
                             </div>
                         )}
 
                         {currentView === 'edit' && (
                             <div className="animate-in pb-20 text-left">
-                                <h2 className="text-6xl font-black uppercase italic mb-10 text-vibrant-day">Editor</h2>
+                                <h2 className="text-6xl font-black uppercase italic mb-10 text-vibrant-day leading-none">Editor de Alabanza</h2>
                                 <div className="space-y-10">
-                                    <input type="text" placeholder="Título..." className="w-full p-10 rounded-[48px] border-4 border-slate-950 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-inner dark:bg-slate-900 text-slate-950 dark:text-white" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
+                                    <input type="text" placeholder="TÍTULO..." className="w-full p-10 rounded-[48px] border-4 border-slate-950 focus:border-indigo-600 font-black text-4xl uppercase outline-none shadow-inner dark:bg-slate-900 text-slate-950 dark:text-white" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                                         <input type="text" placeholder="Compositor..." className="w-full p-8 rounded-[32px] border-4 border-slate-700 font-black text-xl dark:bg-slate-900 shadow-inner text-slate-950 dark:text-white" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
                                         <input type="text" placeholder="Tono..." className="w-full p-8 rounded-[32px] border-4 border-slate-700 font-black text-xl dark:bg-slate-900 shadow-inner text-slate-950 dark:text-white" value={editKey} onChange={e=>setEditKey(e.target.value)} />
                                     </div>
-                                    <div className="flex flex-col sm:flex-row gap-4">
-                                        <button onClick={linkChordsManually} className="flex-1 py-10 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 rounded-[40px] font-black text-2xl border-4 border-indigo-600 flex items-center justify-center gap-5 btn-3d uppercase">
-                                            <Icon name="wand-2" size={40} /> VINCULAR ACORDES
-                                        </button>
-                                        <div className="flex gap-4">
-                                            <button onClick={() => insertBracket('left')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl font-black">[</button>
-                                            <button onClick={() => insertBracket('right')} className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl btn-3d text-4xl font-black">]</button>
-                                        </div>
-                                    </div>
-                                    <textarea ref={textareaRef} placeholder="Pega letra con [Acordes]..." className="w-full h-[700px] p-12 rounded-[80px] border-4 border-slate-300 font-mono text-2xl outline-none focus:ring-[30px] ring-indigo-500/5 dark:bg-slate-900 shadow-inner text-slate-950 dark:text-white font-bold" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
-                                    <button onClick={handleSave} className="w-full py-8 bg-indigo-600 text-white rounded-[40px] font-black btn-3d uppercase text-2xl shadow-2xl tracking-widest">GUARDAR</button>
+                                    <textarea placeholder="Pega letra con [Acordes]..." className="w-full h-[700px] p-12 rounded-[80px] border-4 border-slate-300 font-mono text-2xl outline-none focus:ring-[30px] ring-indigo-500/5 dark:bg-slate-900 shadow-inner text-slate-950 dark:text-white font-bold" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
+                                    <button onClick={handleSave} className="w-full py-8 bg-indigo-600 text-white rounded-[40px] font-black btn-3d uppercase text-2xl shadow-2xl tracking-widest">GUARDAR ALABANZA</button>
                                 </div>
                             </div>
                         )}
                     </main>
 
-                    {/* CONTROLES FLOTANTES */}
-                    {currentView === 'view' && (
-                        <div className="fixed bottom-8 right-8 flex flex-col items-end gap-4 z-[100] no-print">
-                            <div className="flex items-center gap-2 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur rounded-full shadow-2xl border-4 border-slate-950">
-                                <span className="font-black text-indigo-600 text-sm px-2">{bpm} <span className="text-[8px] opacity-40">BPM</span></span>
-                                <button onClick={()=>setIsMetronomePlaying(!isMetronomePlaying)} className={`w-10 h-10 rounded-full flex items-center justify-center ${isMetronomePlaying?'bg-red-500':'bg-emerald-600'} text-white shadow-lg`}><Icon name={isMetronomePlaying ? "pause" : "music"} size={16}/></button>
-                            </div>
-                            <div className="flex items-center gap-3 p-3 bg-white/95 dark:bg-slate-900/95 backdrop-blur rounded-full shadow-2xl border-4 border-slate-950">
-                                {isScrolling && (
-                                    <div className="flex items-center gap-2 pr-2 border-r border-slate-300">
-                                        <button className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full" onClick={() => setScrollSpeed(s => Math.max(1, s - 1))}><Icon name="rewind" size={18}/></button>
-                                        <span className="font-black text-indigo-600 px-1 text-sm">{scrollSpeed}x</span>
-                                        <button className="p-3 bg-slate-100 dark:bg-slate-800 rounded-full" onClick={() => setScrollSpeed(s => Math.min(10, s + 1))}><Icon name="fast-forward" size={18}/></button>
-                                    </div>
-                                )}
-                                <button onClick={() => setIsScrolling(!isScrolling)} className={`p-6 rounded-full text-white shadow-xl transition-all ${isScrolling ? 'bg-red-500' : 'bg-indigo-600'}`}><Icon name={isScrolling ? "pause" : "play"} size={32} /></button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* MODAL AUTH DUAL (GOOGLE + CORREO) */}
+                    {/* MODAL AUTH DUAL - REPARADO */}
                     {showAuthModal && (
                         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] text-center backdrop-blur-sm">
                             <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[56px] p-10 border-[12px] border-indigo-600/10 shadow-2xl relative animate-in">
-                                <button onClick={()=>setShowAuthModal(false)} className="absolute top-8 right-8 opacity-30"><Icon name="x" size={32}/></button>
+                                <button onClick={()=>setShowAuthModal(false)} className="absolute top-8 right-8 opacity-30 p-2 hover:opacity-100 transition-opacity"><Icon name="x" size={32}/></button>
                                 <h3 className="text-3xl font-black uppercase italic mb-8">MI CUENTA</h3>
                                 
                                 <div className="space-y-6">
@@ -532,13 +402,27 @@
                                         <input type="password" placeholder="CONTRASEÑA" className="w-full p-4 rounded-2xl border-4 border-slate-950 dark:bg-slate-800 font-bold uppercase outline-none shadow-inner" value={pass} onChange={e=>setPass(e.target.value)} />
                                         <div className="flex gap-2">
                                             <button onClick={() => handleAuth('login')} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black btn-3d uppercase">ENTRAR</button>
-                                            <button onClick={() => handleAuth('register')} className="flex-1 py-4 bg-white border-4 border-slate-950 rounded-2xl font-black uppercase">CREAR</button>
+                                            <button onClick={() => setAuthMode('register')} className="flex-1 py-4 bg-white border-4 border-slate-950 rounded-2xl font-black uppercase">CREAR</button>
                                         </div>
                                     </div>
                                 </div>
                                 <p className="text-[10px] opacity-40 uppercase font-black px-6 mt-8">Tus alabanzas se sincronizan en la nube automáticamente.</p>
                             </div>
                         </div>
+                    )}
+
+                    {/* CONFIRMACIÓN BORRADO */}
+                    {itemToDelete && (
+                      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-6 z-[1000] animate-in zoom-in-95">
+                        <div className="bg-white dark:bg-slate-900 rounded-[56px] p-12 max-w-sm w-full shadow-2xl text-center border-8 border-red-500/10">
+                          <div className="w-24 h-24 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse"><Icon name="trash-2" size={48} /></div>
+                          <h3 className="text-4xl font-black mb-4 dark:text-white uppercase tracking-tighter">¿Borrar?</h3>
+                          <div className="flex gap-4">
+                            <button onClick={()=>setItemToDelete(null)} className="flex-1 py-5 font-black bg-slate-100 dark:bg-slate-800 rounded-3xl text-slate-500 uppercase font-bold">NO</button>
+                            <button onClick={confirmDelete} className="flex-1 py-5 bg-red-600 text-white rounded-3xl font-black shadow-lg shadow-red-500/20 active:scale-95 transition-all uppercase font-bold">BORRAR</button>
+                          </div>
+                        </div>
+                      </div>
                     )}
                 </div>
             );
