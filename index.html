@@ -13,7 +13,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
-    <!-- Firebase Compat -->
+    <!-- Firebase Compat (Carga Robusta) -->
     <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore-compat.js"></script>
@@ -32,7 +32,7 @@
 
         .dark .card-master { background: #0f172a; border-color: #334155; box-shadow: 8px 8px 0px 0px #000; }
 
-        /* RENDER DE ACORDES */
+        /* ACORDES Y LETRAS */
         .chord-row { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.2rem; }
         .chord-unit { display: flex; flex-direction: column; margin-right: 8px; }
         .chord-mark { font-weight: 900; color: #6366f1; line-height: 1; margin-bottom: 4px; }
@@ -49,6 +49,7 @@
     <script type="text/babel">
         const { useState, useEffect, useRef } = React;
 
+        // --- CONFIGURACIÓN FIREBASE ---
         const firebaseConfig = {
             apiKey: "AIzaSyAqMDVdI0mjTf9Mdvg1SmkPUZaaxV8X2o4",
             authDomain: "mi-corario-pro.firebaseapp.com",
@@ -84,19 +85,14 @@
             const [isDarkMode, setIsDarkMode] = useState(false);
             const [activeSongId, setActiveSongId] = useState(null);
             const [searchQuery, setSearchQuery] = useState('');
-            
             const [showAuthModal, setShowAuthModal] = useState(false);
-            const [authMode, setAuthMode] = useState('google'); 
+            const [authMode, setAuthMode] = useState('google');
             const [email, setEmail] = useState('');
             const [password, setPassword] = useState('');
             const [authLoading, setAuthLoading] = useState(false);
             const [toast, setToast] = useState(null);
 
-            const [editTitle, setEditTitle] = useState('');
-            const [editArtist, setEditArtist] = useState('');
-            const [editLyrics, setEditLyrics] = useState('');
-            const [editKey, setEditKey] = useState('');
-
+            // Herramientas Maestras
             const [transposeSteps, setTransposeSteps] = useState(0);
             const [textSize, setTextSize] = useState(22);
             const [bpm, setBpm] = useState(120);
@@ -104,40 +100,35 @@
             const [isScrolling, setIsScrolling] = useState(false);
             const [scrollSpeed, setScrollSpeed] = useState(2);
 
+            // Editor
+            const [editTitle, setEditTitle] = useState('');
+            const [editArtist, setEditArtist] = useState('');
+            const [editLyrics, setEditLyrics] = useState('');
+            const [editKey, setEditKey] = useState('');
+
             const audioCtx = useRef(null);
             const appId = "corario-pro-final-v4";
 
+            // --- LÓGICA DE AUTENTICACIÓN REFORZADA ---
             useEffect(() => {
                 const initAuth = async () => {
-                    // Verificamos soporte antes de intentar getRedirectResult para evitar errores en iframes/entornos restrictivos
-                    const isSupportedProtocol = window.location.protocol === 'http:' || window.location.protocol === 'https:';
+                    const isSupported = window.location.protocol.startsWith('http');
                     
-                    if (isSupportedProtocol) {
+                    if (isSupported) {
                         try {
                             const result = await auth.getRedirectResult();
                             if (result?.user) {
-                                showToast("¡Cuenta sincronizada!");
+                                setUser(result.user);
+                                showToast("¡Sesión iniciada con Google!");
                                 setShowAuthModal(false);
                             }
-                        } catch (e) {
-                            if (e.code === 'auth/operation-not-supported-in-this-environment') {
-                                console.warn("Entorno restrictivo: los redireccionamientos de Auth no están disponibles aquí.");
-                            } else {
-                                console.error("Redirect error:", e);
-                            }
-                        }
+                        } catch (e) { console.error("Error redirect:", e); }
                     }
 
-                    auth.onAuthStateChanged(async (u) => {
+                    auth.onAuthStateChanged((u) => {
                         setUser(u);
                         if (!u) {
-                            try {
-                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                                    await auth.signInWithCustomToken(__initial_auth_token);
-                                } else {
-                                    await auth.signInAnonymously();
-                                }
-                            } catch (err) { console.warn("Modo invitado activado"); }
+                            auth.signInAnonymously().catch(e => console.warn("Modo invitado"));
                         }
                         setLoading(false);
                     });
@@ -145,6 +136,7 @@
                 initAuth();
             }, []);
 
+            // --- SINCRONIZACIÓN DE DATOS ---
             useEffect(() => {
                 if (!user) return;
                 const unsub = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('songs')
@@ -152,6 +144,7 @@
                 return () => unsub();
             }, [user]);
 
+            // --- LÓGICA DE HERRAMIENTAS (Metrónomo y Scroll) ---
             useEffect(() => {
                 let timer;
                 if (isMetronomeOn) {
@@ -202,13 +195,7 @@
                     else await auth.createUserWithEmailAndPassword(email, password);
                     setShowAuthModal(false);
                     showToast("¡Sesión iniciada!");
-                } catch (e) { 
-                    if (e.code === 'auth/operation-not-supported-in-this-environment') {
-                        showToast("Error: El navegador no soporta esta operación");
-                    } else {
-                        showToast("Error en credenciales");
-                    }
-                }
+                } catch (e) { showToast("Error en credenciales"); }
                 setAuthLoading(false);
             };
 
@@ -254,7 +241,7 @@
                 });
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic text-2xl animate-pulse uppercase tracking-widest">Sincronizando...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic text-2xl animate-pulse uppercase tracking-widest">Sincronizando Corario...</div>;
 
             const activeSong = songs.find(s => s.id === activeSongId);
 
@@ -276,17 +263,17 @@
                                 
                                 {user && !user.isAnonymous ? (
                                     <div className="flex items-center gap-2 bg-black/20 pl-4 pr-1.5 py-1.5 rounded-full border border-white/20 shadow-inner">
-                                        <div className="text-right hidden xs:block">
+                                        <div className="text-right hidden sm:block">
                                             <p className="text-[9px] font-black opacity-60 uppercase leading-none mb-0.5">Músico Pro</p>
                                             <p className="text-[11px] font-bold leading-tight truncate max-w-[90px]">{user.displayName || user.email?.split('@')[0] || 'Usuario'}</p>
                                         </div>
-                                        <button onClick={() => auth.signOut()} className="w-9 h-9 rounded-full border-2 border-indigo-400 overflow-hidden shadow-lg hover:scale-110 active:scale-95 transition-all">
+                                        <button onClick={() => auth.signOut()} className="w-10 h-10 rounded-full border-4 border-indigo-500 overflow-hidden shadow-xl hover:scale-110 active:scale-95 transition-all bg-white">
                                             <img 
-                                                key={user.photoURL}
-                                                src={user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email || user.uid}&backgroundColor=6366f1&fontFamily=Inter&fontWeight=700`} 
+                                                src={user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || user.email || 'U')}&background=6366f1&color=fff&bold=true`} 
                                                 className="w-full h-full object-cover" 
                                                 referrerPolicy="no-referrer"
                                                 alt="avatar"
+                                                onError={(e) => { e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'U')}&background=6366f1&color=fff&bold=true` }}
                                             />
                                         </button>
                                     </div>
@@ -321,7 +308,7 @@
                             {currentView === 'edit' && (
                                 <div className="animate-pop pb-20">
                                     <div className="flex justify-between items-center mb-8">
-                                        <h2 className="text-3xl font-black uppercase italic">Editor de Alabanza</h2>
+                                        <h2 className="text-3xl font-black uppercase italic">Editor</h2>
                                         <button onClick={() => setCurrentView('list')} className="text-slate-500 font-bold uppercase text-xs">Cerrar</button>
                                     </div>
                                     <div className="space-y-6">
@@ -330,7 +317,7 @@
                                             <input type="text" placeholder="ARTISTA..." className="w-full p-4 rounded-2xl border-4 border-black dark:border-slate-800 font-bold uppercase dark:bg-slate-900" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
                                             <input type="text" placeholder="TONO (G)..." className="w-full p-4 rounded-2xl border-4 border-black dark:border-slate-800 font-bold uppercase dark:bg-slate-900" value={editKey} onChange={e=>setEditKey(e.target.value)} />
                                         </div>
-                                        <textarea placeholder="Pega letra con acordes [Do]..." className="w-full h-96 p-6 rounded-[40px] border-4 border-black dark:border-slate-800 font-mono text-lg dark:bg-slate-900 outline-none" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
+                                        <textarea placeholder="Letra con acordes [Do]..." className="w-full h-96 p-6 rounded-[40px] border-4 border-black dark:border-slate-800 font-mono text-lg dark:bg-slate-900 outline-none shadow-inner" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
                                         <button onClick={handleSave} className="w-full py-6 bg-indigo-600 text-white rounded-[40px] btn-master font-black text-2xl uppercase shadow-[0_8px_0_#1e1b4b]">GUARDAR ALABANZA</button>
                                     </div>
                                 </div>
@@ -341,7 +328,7 @@
                                     <div className="flex justify-between items-center mb-8 no-print">
                                         <button onClick={() => setCurrentView('list')} className="text-indigo-600 font-black flex items-center gap-2 uppercase text-xs"><LucideIcon name="chevron-left" /> VOLVER</button>
                                         <div className="flex gap-2">
-                                            <button onClick={()=>{setEditTitle(activeSong.title); setEditArtist(activeSong.artist); setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey); setCurrentView('edit')}} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl"><LucideIcon name="edit-2" size={20}/></button>
+                                            <button onClick={()=>{setEditTitle(activeSong.title); setEditArtist(activeSong.artist); setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey); setCurrentView('edit')}} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl border-2 border-black/10"><LucideIcon name="edit-2" size={20}/></button>
                                         </div>
                                     </div>
                                     
@@ -349,12 +336,12 @@
                                     <p className="text-2xl opacity-40 font-black uppercase tracking-widest mb-10">{activeSong.artist}</p>
 
                                     <div className="flex flex-wrap gap-4 mb-12 no-print">
-                                        <div className="flex items-center bg-white dark:bg-slate-900 border-4 border-black p-1 rounded-2xl shadow-[4px_4px_0_0_#000]">
+                                        <div className="flex items-center bg-white dark:bg-slate-900 border-4 border-black p-1 rounded-2xl shadow-[4px_4px_0px_0px_#000]">
                                             <button className="w-10 h-10 font-black" onClick={() => setTransposeSteps(s => s - 1)}>-</button>
                                             <span className="px-4 font-black text-indigo-600 uppercase text-xs">{transposeSteps === 0 ? 'Original' : (transposeSteps > 0 ? `+${transposeSteps}` : transposeSteps)}</span>
                                             <button className="w-10 h-10 font-black" onClick={() => setTransposeSteps(s => s + 1)}>+</button>
                                         </div>
-                                        <div className="flex items-center bg-white dark:bg-slate-900 border-4 border-black p-1 rounded-2xl shadow-[4px_4px_0_0_#000]">
+                                        <div className="flex items-center bg-white dark:bg-slate-900 border-4 border-black p-1 rounded-2xl shadow-[4px_4px_0px_0px_#000]">
                                             <span className="px-4 font-black text-teal-600 uppercase text-xs">{bpm} BPM</span>
                                             <button onClick={() => setIsMetronomeOn(!isMetronomeOn)} className={`w-10 h-10 flex items-center justify-center rounded-xl text-white ${isMetronomeOn ? 'bg-red-500' : 'bg-teal-500'}`}><LucideIcon name={isMetronomeOn ? "pause" : "play"} size={16} /></button>
                                         </div>
@@ -391,17 +378,9 @@
                                                 disabled={authLoading}
                                                 onClick={async () => {
                                                     setAuthLoading(true);
-                                                    try { 
-                                                        // Verificación extra de soporte para el botón
-                                                        if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-                                                            await auth.signInWithRedirect(googleProvider); 
-                                                        } else {
-                                                            showToast("Error: Entorno no soportado para Google Login");
-                                                            setAuthLoading(false);
-                                                        }
-                                                    } catch(e) { setAuthLoading(false); }
+                                                    try { await auth.signInWithRedirect(googleProvider); } catch(e) { setAuthLoading(false); }
                                                 }} 
-                                                className="w-full py-6 bg-white dark:bg-slate-800 border-4 border-black rounded-3xl font-black text-sm flex items-center justify-center gap-4 shadow-[6px_6px_0_0_#000] active:translate-y-1 transition-all mb-4"
+                                                className="w-full py-6 bg-white dark:bg-slate-800 border-4 border-black rounded-3xl font-black text-sm flex items-center justify-center gap-4 shadow-[6px_6px_0px_0px_#000] active:translate-y-1 transition-all mb-4"
                                             >
                                                 {authLoading ? <LucideIcon name="loader-2" className="animate-spin" /> : <img src="https://www.google.com/favicon.ico" className="w-8 h-8" />} 
                                                 CONTINUAR CON GOOGLE
@@ -416,10 +395,10 @@
                                                 <button disabled={authLoading} onClick={() => handleEmailAuth('login')} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black btn-master">ENTRAR</button>
                                                 <button disabled={authLoading} onClick={() => handleEmailAuth('register')} className="flex-1 py-4 bg-white dark:bg-slate-800 border-4 border-black rounded-2xl font-black">CREAR</button>
                                             </div>
-                                            <button onClick={() => setAuthMode('google')} className="block w-full text-xs font-black uppercase opacity-60 pt-4 underline decoration-2">Volver a Google</button>
+                                            <button onClick={() => setAuthMode('google')} className="block w-full text-xs font-black uppercase opacity-60 pt-4 underline decoration-2 text-center">Volver a Google</button>
                                         </div>
                                     )}
-                                    <p className="text-[10px] opacity-40 uppercase font-black px-6 mt-8 leading-tight tracking-widest">Sincronización segura con Google Cloud.</p>
+                                    <p className="text-[10px] opacity-40 uppercase font-black px-6 mt-8">Sincronización en la nube habilitada.</p>
                                 </div>
                             </div>
                         )}
