@@ -6,36 +6,54 @@
     <meta name="google" content="notranslate">
     <title>My Corario - Master Pro</title>
     
+    <!-- Librerías Core -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     
+    <!-- Firebase Compat (Carga Síncrona para evitar errores de referencia) -->
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore-compat.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
         body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        /* DISEÑO MAESTRO NEUBRUTALISTA */
         .btn-master { transition: all 0.1s ease; box-shadow: 0 6px 0 #000; border: 4px solid #000; }
         .btn-master:active { transform: translateY(4px); box-shadow: 0 2px 0 #000; }
-        .card-master { background: white; border: 4px solid #000; box-shadow: 8px 8px 0px 0px #000; }
-        .dark .card-master { background: #0f172a; border-color: #1e293b; box-shadow: 8px 8px 0px 0px #000; }
+        .btn-master:disabled { opacity: 0.5; transform: none; box-shadow: 0 4px 0 #000; }
+
+        .card-master { background: white; border: 4px solid #000; box-shadow: 8px 8px 0px 0px #000; transition: all 0.2s; }
+        .card-master:active { transform: translate(2px, 2px); box-shadow: 4px 4px 0px 0px #000; }
+
+        .dark .card-master { background: #0f172a; border-color: #334155; box-shadow: 8px 8px 0px 0px #000; }
+
+        /* RENDER DE ACORDES */
         .chord-row { display: flex; flex-wrap: wrap; align-items: flex-end; margin-bottom: 1.2rem; }
-        .chord-unit { display: flex; flex-direction: column; margin-right: 6px; }
-        .chord-mark { font-weight: 900; color: #4338ca; line-height: 1; margin-bottom: 4px; }
+        .chord-unit { display: flex; flex-direction: column; margin-right: 8px; }
+        .chord-mark { font-weight: 900; color: #6366f1; line-height: 1; margin-bottom: 4px; }
         .lyric-mark { white-space: pre; font-weight: 700; line-height: 1.2; }
+
         @media print { .no-print { display: none !important; } body { background: white !important; color: black !important; } }
         .animate-pop { animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        @keyframes pop { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        @keyframes pop { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+        /* Scrollbar */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4338ca; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-slate-950">
     <div id="root"></div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signOut, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-auth.js";
-        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.2/firebase-firestore.js";
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
 
+        // --- INICIALIZACIÓN DE FIREBASE COMPAT ---
         const firebaseConfig = {
             apiKey: "AIzaSyAqMDVdI0mjTf9Mdvg1SmkPUZaaxV8X2o4",
             authDomain: "mi-corario-pro.firebaseapp.com",
@@ -46,17 +64,15 @@
             measurementId: "G-F8DYHNMLSC"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const googleProvider = new GoogleAuthProvider();
+        // Inicializamos una sola vez
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
         googleProvider.setCustomParameters({ prompt: 'select_account' });
-
-        window.FirebaseMaster = { auth, db, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, googleProvider, signInWithRedirect, getRedirectResult, signOut, signInWithAnonymously: signInAnonymously, onAuthStateChanged, signInWithCustomToken };
-    </script>
-
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
 
         const LucideIcon = ({ name, size = 24, className = "" }) => {
             const iconRef = useRef(null);
@@ -70,7 +86,6 @@
         };
 
         function App() {
-            const FB = window.FirebaseMaster;
             const [user, setUser] = useState(null);
             const [songs, setSongs] = useState([]);
             const [playlists, setPlaylists] = useState([]);
@@ -79,11 +94,12 @@
             const [activeTab, setActiveTab] = useState('songs');
             const [isDarkMode, setIsDarkMode] = useState(false);
             const [activeSongId, setActiveSongId] = useState(null);
-            const [activePlaylistId, setActivePlaylistId] = useState(null);
             const [searchQuery, setSearchQuery] = useState('');
             const [showAuthModal, setShowAuthModal] = useState(false);
-            const [showPlaylistModal, setShowPlaylistModal] = useState(false);
-            const [newPlaylistName, setNewPlaylistName] = useState('');
+            const [authMode, setAuthMode] = useState('google');
+            const [email, setEmail] = useState('');
+            const [password, setPassword] = useState('');
+            const [authLoading, setAuthLoading] = useState(false);
             const [toast, setToast] = useState(null);
 
             // Editor
@@ -94,64 +110,115 @@
 
             // Herramientas
             const [transposeSteps, setTransposeSteps] = useState(0);
-            const [textSize, setTextSize] = useState(20);
+            const [textSize, setTextSize] = useState(22);
             const [bpm, setBpm] = useState(120);
             const [isMetronomeOn, setIsMetronomeOn] = useState(false);
             const [isScrolling, setIsScrolling] = useState(false);
             const [scrollSpeed, setScrollSpeed] = useState(2);
 
             const audioCtx = useRef(null);
-            const appId = "corario-pro-final-v3";
+            const appId = "corario-pro-final-v4";
 
+            // --- AUTH LOGIC REPARADA ---
             useEffect(() => {
-                const startAuth = async () => {
+                const initAuth = async () => {
                     try {
-                        const result = await FB.getRedirectResult(FB.auth);
-                        if (result) showToast("Sesión iniciada");
-                    } catch (e) { console.error(e); }
-
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await FB.signInWithCustomToken(FB.auth, __initial_auth_token);
-                        } else if (!FB.auth.currentUser) {
-                            await FB.signInWithAnonymously(FB.auth);
+                        const result = await auth.getRedirectResult();
+                        if (result?.user) {
+                            showToast("¡Sesión iniciada con Google!");
                         }
-                    } catch (err) {
-                        if (!FB.auth.currentUser) await FB.signInWithAnonymously(FB.auth);
+                    } catch (e) { 
+                        console.error("Redirect error:", e); 
                     }
-                    setLoading(false);
+
+                    auth.onAuthStateChanged(async (u) => {
+                        setUser(u);
+                        if (!u) {
+                            try {
+                                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                                    await auth.signInWithCustomToken(__initial_auth_token);
+                                } else {
+                                    await auth.signInAnonymously();
+                                }
+                            } catch (err) { 
+                                console.warn("Fallback anónimo activado"); 
+                            }
+                        }
+                        setLoading(false);
+                    });
                 };
-                startAuth();
-                const unsub = FB.onAuthStateChanged(FB.auth, setUser);
-                return () => unsub();
+                initAuth();
             }, []);
 
+            // --- DATA SYNC REPARADA ---
             useEffect(() => {
                 if (!user) return;
-                const unsubS = FB.onSnapshot(FB.collection(FB.db, 'artifacts', appId, 'users', user.uid, 'songs'), (snap) => {
-                    setSongs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                });
-                const unsubP = FB.onSnapshot(FB.collection(FB.db, 'artifacts', appId, 'users', user.uid, 'playlists'), (snap) => {
-                    setPlaylists(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-                });
+                
+                const unsubS = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('songs')
+                    .onSnapshot((snap) => {
+                        setSongs(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                    }, (err) => console.error("Error songs:", err));
+
+                const unsubP = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('playlists')
+                    .onSnapshot((snap) => {
+                        setPlaylists(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+                    }, (err) => console.error("Error playlists:", err));
+
                 return () => { unsubS(); unsubP(); };
             }, [user]);
+
+            // --- TOOLS ---
+            useEffect(() => {
+                let timer;
+                if (isMetronomeOn) {
+                    timer = setInterval(() => {
+                        if (!audioCtx.current) audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = audioCtx.current.createOscillator();
+                        const g = audioCtx.current.createGain();
+                        osc.connect(g); g.connect(audioCtx.current.destination);
+                        osc.frequency.value = 880;
+                        g.gain.setValueAtTime(0.1, audioCtx.current.currentTime);
+                        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.current.currentTime + 0.05);
+                        osc.start(); osc.stop(audioCtx.current.currentTime + 0.05);
+                    }, 60000 / bpm);
+                }
+                return () => clearInterval(timer);
+            }, [isMetronomeOn, bpm]);
+
+            useEffect(() => {
+                let sTimer;
+                if (isScrolling) sTimer = setInterval(() => window.scrollBy(0, scrollSpeed), 50);
+                return () => clearInterval(sTimer);
+            }, [isScrolling, scrollSpeed]);
 
             const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
             const handleSaveSong = async () => {
-                if (!editTitle) return showToast("Falta el título");
-                const data = { title: editTitle.toUpperCase(), artist: editArtist.toUpperCase(), musicalKey: editKey.toUpperCase(), lyrics: editLyrics, updatedAt: Date.now() };
-                if (activeSongId) await FB.updateDoc(FB.doc(FB.db, 'artifacts', appId, 'users', user.uid, 'songs', activeSongId), data);
-                else await FB.addDoc(FB.collection(FB.db, 'artifacts', appId, 'users', user.uid, 'songs'), data);
-                setCurrentView('list'); showToast("Alabanza guardada");
+                if (!editTitle) return showToast("El título es obligatorio");
+                const data = { 
+                    title: editTitle.toUpperCase(), 
+                    artist: editArtist.toUpperCase() || "AUTOR DESCONOCIDO", 
+                    musicalKey: editKey.toUpperCase() || "S/D", 
+                    lyrics: editLyrics, 
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                try {
+                    const songRef = db.collection('artifacts').doc(appId).collection('users').doc(user.uid).collection('songs');
+                    if (activeSongId) await songRef.doc(activeSongId).update(data);
+                    else await songRef.add(data);
+                    setCurrentView('list');
+                    showToast("¡Alabanza guardada!");
+                } catch (e) { showToast("Error al guardar"); }
             };
 
-            const handleDeleteSong = async (id) => {
-                if (confirm("¿Borrar alabanza?")) {
-                    await FB.deleteDoc(FB.doc(FB.db, 'artifacts', appId, 'users', user.uid, 'songs', id));
-                    setCurrentView('list');
-                }
+            const handleEmailAuth = async (type) => {
+                setAuthLoading(true);
+                try {
+                    if (type === 'login') await auth.signInWithEmailAndPassword(email, password);
+                    else await auth.createUserWithEmailAndPassword(email, password);
+                    setShowAuthModal(false);
+                } catch (e) { showToast("Error: Revisa tus datos"); }
+                setAuthLoading(false);
             };
 
             const transposeChord = (chord, steps) => {
@@ -171,7 +238,7 @@
             const renderLyrics = (text) => {
                 if (!text) return null;
                 return text.split('\n').map((line, i) => {
-                    if (!line.trim()) return <div key={i} className="h-4"></div>;
+                    if (!line.trim()) return <div key={i} className="h-6"></div>;
                     const parts = line.split(/(\[[^\]]+\])/g);
                     let segments = []; let lastChord = "";
                     parts.forEach(p => {
@@ -196,15 +263,17 @@
                 });
             };
 
-            if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic uppercase tracking-widest text-xl">Sincronizando Corario...</div>;
+            if (loading) return <div className="h-screen flex items-center justify-center bg-indigo-700 text-white font-black italic uppercase text-2xl animate-pulse">Cargando Corario...</div>;
 
             const activeSong = songs.find(s => s.id === activeSongId);
 
             return (
                 <div className={isDarkMode ? 'dark' : ''}>
                     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pb-32">
-                        {toast && <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-6 py-3 rounded-full font-black z-[200] shadow-2xl animate-bounce">{toast}</div>}
+                        
+                        {toast && <div className="fixed top-6 left-1/2 -translate-x-1/2 bg-indigo-600 text-white px-6 py-3 rounded-full font-black z-[200] shadow-2xl animate-pop">{toast}</div>}
 
+                        {/* HEADER */}
                         <header className="sticky top-0 z-50 bg-indigo-700 text-white p-4 shadow-xl flex justify-between items-center no-print">
                             <div className="flex items-center gap-2 cursor-pointer" onClick={() => {setCurrentView('list'); setIsScrolling(false)}}>
                                 <LucideIcon name="music" size={28} />
@@ -215,11 +284,17 @@
                                     <LucideIcon name={isDarkMode ? "sun" : "moon"} size={20} />
                                 </button>
                                 {user && !user.isAnonymous ? (
-                                    <button onClick={() => FB.signOut(FB.auth)} className="w-10 h-10 rounded-full border-2 border-white/20 overflow-hidden shadow-lg">
-                                        <img src={user.photoURL} className="w-full h-full object-cover" />
-                                    </button>
+                                    <div className="flex items-center gap-3">
+                                        <div className="text-right hidden sm:block">
+                                            <p className="text-[10px] font-black opacity-50 uppercase leading-none">Usuario</p>
+                                            <p className="text-xs font-bold leading-tight">{user.email?.split('@')[0].toUpperCase() || "SIN EMAIL"}</p>
+                                        </div>
+                                        <button onClick={() => auth.signOut()} className="w-10 h-10 rounded-full border-2 border-white/20 overflow-hidden shadow-lg">
+                                            <img src={user.photoURL || `https://api.dicebear.com/7.x/initials/svg?seed=${user.email || user.uid}`} className="w-full h-full object-cover" />
+                                        </button>
+                                    </div>
                                 ) : (
-                                    <button onClick={() => setShowAuthModal(true)} className="btn-master bg-white text-indigo-700 px-5 py-2 rounded-xl font-black text-xs uppercase">ENTRAR</button>
+                                    <button onClick={() => setShowAuthModal(true)} className="btn-master bg-white text-indigo-700 px-5 py-2 rounded-xl font-black text-xs uppercase">Entrar</button>
                                 )}
                             </div>
                         </header>
@@ -243,19 +318,13 @@
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {activeTab === 'songs' ? (
                                             songs.filter(s => (s.title||'').toLowerCase().includes(searchQuery.toLowerCase())).map(s => (
-                                                <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view')}} className="card-master p-6 cursor-pointer group active:translate-y-1 transition-all">
+                                                <div key={s.id} onClick={() => {setActiveSongId(s.id); setTransposeSteps(0); setCurrentView('view')}} className="card-master p-6 cursor-pointer group">
                                                     <h3 className="font-black text-2xl uppercase italic group-hover:text-indigo-600 truncate">{s.title}</h3>
-                                                    <p className="text-sm font-bold opacity-40 mt-1 uppercase tracking-widest">{s.artist || 'MÚSICA CRISTIANA'} • [{s.musicalKey || 'S/D'}]</p>
+                                                    <p className="text-sm font-bold opacity-40 mt-1 uppercase tracking-widest">{s.artist} • [{s.musicalKey}]</p>
                                                 </div>
                                             ))
                                         ) : (
-                                            playlists.map(p => (
-                                                <div key={p.id} className="card-master p-6 cursor-pointer relative">
-                                                    <h3 className="font-black text-2xl uppercase italic mb-2">{p.name}</h3>
-                                                    <p className="text-xs font-black text-indigo-600 uppercase">{(p.songs||[]).length} Alabanzas</p>
-                                                    <button onClick={async(e)=>{e.stopPropagation(); if(confirm("¿Borrar culto?")) await FB.deleteDoc(FB.doc(FB.db,'artifacts',appId,'users',user.uid,'playlists',p.id))}} className="absolute top-4 right-4 text-red-500"><LucideIcon name="trash-2" size={18}/></button>
-                                                </div>
-                                            ))
+                                            <div className="col-span-full py-20 text-center opacity-30 italic font-black uppercase">No hay cultos creados aún</div>
                                         )}
                                     </div>
                                 </div>
@@ -264,17 +333,17 @@
                             {currentView === 'edit' && (
                                 <div className="animate-pop pb-20">
                                     <div className="flex justify-between items-center mb-8">
-                                        <h2 className="text-3xl font-black uppercase italic">Editor de Alabanza</h2>
-                                        <button onClick={() => setCurrentView('list')} className="text-slate-500 font-bold">CANCELAR</button>
+                                        <h2 className="text-3xl font-black uppercase italic">Editor</h2>
+                                        <button onClick={() => setCurrentView('list')} className="text-slate-500 font-bold uppercase text-xs">Cerrar</button>
                                     </div>
                                     <div className="space-y-6">
                                         <input type="text" placeholder="TÍTULO..." className="w-full p-4 rounded-2xl border-4 border-black dark:border-slate-800 font-black text-xl uppercase dark:bg-slate-900" value={editTitle} onChange={e=>setEditTitle(e.target.value)} />
                                         <div className="grid grid-cols-2 gap-4">
                                             <input type="text" placeholder="ARTISTA..." className="w-full p-4 rounded-2xl border-4 border-black dark:border-slate-800 font-bold uppercase dark:bg-slate-900" value={editArtist} onChange={e=>setEditArtist(e.target.value)} />
-                                            <input type="text" placeholder="TONO (EJ: G)..." className="w-full p-4 rounded-2xl border-4 border-black dark:border-slate-800 font-bold uppercase dark:bg-slate-900" value={editKey} onChange={e=>setEditKey(e.target.value)} />
+                                            <input type="text" placeholder="TONO (G)..." className="w-full p-4 rounded-2xl border-4 border-black dark:border-slate-800 font-bold uppercase dark:bg-slate-900" value={editKey} onChange={e=>setEditKey(e.target.value)} />
                                         </div>
-                                        <textarea placeholder="Letra con acordes entre corchetes [Do]..." className="w-full h-96 p-6 rounded-[40px] border-4 border-black dark:border-slate-800 font-mono text-lg dark:bg-slate-900 outline-none" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
-                                        <button onClick={handleSaveSong} className="w-full py-6 bg-indigo-600 text-white rounded-[40px] btn-master font-black text-2xl uppercase tracking-widest shadow-[0_8px_0_#1e1b4b]">GUARDAR ALABANZA</button>
+                                        <textarea placeholder="Pega la letra con acordes entre corchetes, ejemplo: [Do] Santo..." className="w-full h-96 p-6 rounded-[40px] border-4 border-black dark:border-slate-800 font-mono text-lg dark:bg-slate-900 outline-none" value={editLyrics} onChange={e=>setEditLyrics(e.target.value)} />
+                                        <button onClick={handleSaveSong} className="w-full py-6 bg-indigo-600 text-white rounded-[40px] btn-master font-black text-2xl uppercase shadow-[0_8px_0_#1e1b4b]">GUARDAR ALABANZA</button>
                                     </div>
                                 </div>
                             )}
@@ -285,7 +354,6 @@
                                         <button onClick={() => {setCurrentView('list'); setIsScrolling(false)}} className="text-indigo-600 font-black flex items-center gap-2 uppercase text-sm"><LucideIcon name="chevron-left" /> VOLVER</button>
                                         <div className="flex gap-2">
                                             <button onClick={()=>{setEditTitle(activeSong.title); setEditArtist(activeSong.artist); setEditLyrics(activeSong.lyrics); setEditKey(activeSong.musicalKey); setCurrentView('edit')}} className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl"><LucideIcon name="edit-2" size={20}/></button>
-                                            <button onClick={()=>handleDeleteSong(activeSong.id)} className="p-3 bg-red-100 text-red-600 rounded-xl"><LucideIcon name="trash-2" size={20}/></button>
                                         </div>
                                     </div>
                                     
@@ -295,18 +363,25 @@
                                     <div className="flex flex-wrap gap-4 mb-12 no-print">
                                         <div className="flex items-center bg-white dark:bg-slate-900 border-4 border-black p-1 rounded-2xl shadow-[4px_4px_0px_0px_#000]">
                                             <button className="w-10 h-10 font-black" onClick={() => setTransposeSteps(s => s - 1)}>-</button>
-                                            <span className="px-4 font-black text-indigo-600 uppercase text-xs">{transposeSteps === 0 ? 'Original' : (transposeSteps > 0 ? `+${transposeSteps}` : transposeSteps)}</span>
+                                            <span className="px-4 font-black text-indigo-600 uppercase text-xs">
+                                                {transposeSteps === 0 ? 'Original' : (transposeSteps > 0 ? `+${transposeSteps}` : transposeSteps)}
+                                            </span>
                                             <button className="w-10 h-10 font-black" onClick={() => setTransposeSteps(s => s + 1)}>+</button>
                                         </div>
                                         <div className="flex items-center bg-white dark:bg-slate-900 border-4 border-black p-1 rounded-2xl shadow-[4px_4px_0px_0px_#000]">
                                             <span className="px-4 font-black text-teal-600 uppercase text-xs">{bpm} BPM</span>
-                                            <button onClick={() => setIsMetronomeOn(!isMetronomeOn)} className={`w-10 h-10 flex items-center justify-center rounded-xl text-white ${isMetronomeOn ? 'bg-red-500' : 'bg-teal-500'}`}><LucideIcon name={isMetronomeOn ? "pause" : "play"} size={16}/></button>
+                                            <button onClick={() => setIsMetronomeOn(!isMetronomeOn)} className={`w-10 h-10 flex items-center justify-center rounded-xl text-white ${isMetronomeOn ? 'bg-red-500' : 'bg-teal-500'}`}>
+                                                <LucideIcon name={isMetronomeOn ? "pause" : "play"} size={16} />
+                                            </button>
                                         </div>
-                                        <button onClick={() => window.print()} className="bg-slate-900 text-white p-4 rounded-2xl btn-master"><LucideIcon name="printer" size={20}/></button>
+                                        <button onClick={() => window.print()} className="bg-slate-900 text-white p-4 rounded-2xl btn-master">
+                                            <LucideIcon name="printer" size={20} />
+                                        </button>
                                     </div>
 
                                     <div className="pb-40 font-bold leading-relaxed">{renderLyrics(activeSong.lyrics)}</div>
 
+                                    {/* BOTÓN SCROLL FLOTANTE */}
                                     <div className="fixed bottom-8 right-8 flex items-center gap-3 p-3 bg-white/90 dark:bg-slate-800/90 backdrop-blur rounded-full border-4 border-black shadow-2xl z-50 no-print">
                                         {isScrolling && (
                                             <div className="flex items-center pr-2 border-r-2 border-slate-300 mr-2">
@@ -316,22 +391,45 @@
                                             </div>
                                         )}
                                         <button onClick={() => setIsScrolling(!isScrolling)} className={`p-6 rounded-full text-white shadow-xl ${isScrolling ? 'bg-red-500' : 'bg-indigo-600'}`}>
-                                            <LucideIcon name={isScrolling ? "pause" : "play"} size={32} />
+                                            {isScrolling ? <LucideIcon name="pause" size={32} /> : <LucideIcon name="play" size={32} />}
                                         </button>
                                     </div>
                                 </div>
                             )}
                         </main>
 
-                        {/* MODAL AUTH */}
+                        {/* MODAL AUTH COMPLETO */}
                         {showAuthModal && (
-                            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] text-center">
-                                <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[48px] p-12 border-[12px] border-indigo-600/10 shadow-2xl relative">
+                            <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[1000] text-center backdrop-blur-sm">
+                                <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[56px] p-10 border-[12px] border-indigo-600/10 shadow-2xl relative animate-pop">
                                     <button onClick={()=>setShowAuthModal(false)} className="absolute top-8 right-8 opacity-30"><LucideIcon name="x" size={32}/></button>
-                                    <h3 className="text-3xl font-black uppercase italic tracking-tighter mb-10">Entrar a My Corario</h3>
-                                    <button onClick={() => FB.signInWithRedirect(FB.auth, FB.googleProvider)} className="w-full py-6 bg-white dark:bg-slate-800 border-4 border-black rounded-3xl font-black text-sm flex items-center justify-center gap-4 shadow-[6px_6px_0px_0px_#000]">
-                                        <img src="https://www.google.com/favicon.ico" className="w-8 h-8" /> CONTINUAR CON GOOGLE
-                                    </button>
+                                    <h3 className="text-3xl font-black uppercase italic tracking-tighter mb-8">Entrar a My Corario</h3>
+                                    
+                                    {authMode === 'google' ? (
+                                        <>
+                                            <button 
+                                                onClick={async () => {
+                                                    setAuthLoading(true);
+                                                    try { await auth.signInWithRedirect(googleProvider); } catch(e) { setAuthLoading(false); }
+                                                }} 
+                                                className="w-full py-6 bg-white dark:bg-slate-800 border-4 border-black rounded-3xl font-black text-sm flex items-center justify-center gap-4 shadow-[6px_6px_0px_0px_#000] active:translate-y-1 active:shadow-none transition-all mb-8"
+                                            >
+                                                {authLoading ? <LucideIcon name="loader-2" className="animate-spin" /> : <img src="https://www.google.com/favicon.ico" className="w-8 h-8" />} 
+                                                CONTINUAR CON GOOGLE
+                                            </button>
+                                            <button onClick={() => setAuthMode('email')} className="text-xs font-black uppercase opacity-40 hover:opacity-100">O usar correo electrónico</button>
+                                        </>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <input type="email" placeholder="CORREO@EMAIL.COM" className="w-full p-4 rounded-2xl border-4 border-black dark:bg-slate-800 font-bold uppercase outline-none" value={email} onChange={e=>setEmail(e.target.value)} />
+                                            <input type="password" placeholder="CONTRASEÑA" className="w-full p-4 rounded-2xl border-4 border-black dark:bg-slate-800 font-bold uppercase outline-none" value={password} onChange={e=>setPassword(e.target.value)} />
+                                            <div className="flex gap-2">
+                                                <button onClick={() => handleEmailAuth('login')} className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black btn-master">ENTRAR</button>
+                                                <button onClick={() => handleEmailAuth('register')} className="flex-1 py-4 bg-white dark:bg-slate-800 border-4 border-black rounded-2xl font-black">CREAR</button>
+                                            </div>
+                                            <button onClick={() => setAuthMode('google')} className="block w-full text-xs font-black uppercase opacity-40 pt-4">Volver a Google</button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
